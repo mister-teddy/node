@@ -3,6 +3,7 @@ import type { Selectable } from "kysely";
 import React, {
   createElement,
   lazy,
+  memo,
   Suspense,
   type ComponentType,
   type FunctionComponent,
@@ -73,4 +74,6 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
   );
 };
 
-export default AppRenderer;
+export default memo(AppRenderer, (prev, next) => {
+  return prev.app.id === next.app.id;
+});
