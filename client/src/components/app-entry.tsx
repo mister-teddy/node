@@ -1,7 +1,6 @@
 import { adaptiveIs3DModeAtom, windowsStatesAtom } from "@/state/3d";
 import type { AppTable } from "@/types";
 import { useAtomValue, useSetAtom } from "jotai";
-import type { Selectable } from "kysely";
 import {
   type ComponentType,
   type FunctionComponent,
@@ -11,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import AppRenderer from "./app-renderer";
 
 interface AppEntryProps {
-  app: Selectable<AppTable>;
+  app: AppTable;
   preferedSize?: [number, number];
   component?: ComponentType;
   children: (renderProps: { onClick: () => void }) => ReactNode;

@@ -5,7 +5,7 @@ A peer-to-peer app ecosystem where users can create, distribute, and purchase ap
 ## The Prototype
 
 - The store is a **standalone `store.html` file**. Double-click to open in your default browser.
-- The app list is loaded from a **dummy SQLite database** and rendered using **React**.
+- The app list is loaded from a **SQLite database** via **Host APIs** and rendered using **React**.
 - Each app listing includes a **Pay button** powered by **LDK** (Lightning Development Kit).
 - **AI-Powered HTML Generation**: Generate complete, interactive web applications as self-contained HTML using Claude AI.
 
@@ -84,11 +84,13 @@ flowchart TD
 - **Code Generation Interface**: Create new apps using AI-powered tools
 - **PWA Support**: Installable progressive web app with offline capabilities
 - **Lightning Payments**: Integrated Bitcoin/Lightning Network payment system
+- **Host API Integration**: Connects to server-side SQLite database via RESTful APIs
 
 ### Backend (server/)
 - **AI-Powered HTML Generation**: Generate complete, interactive web applications as self-contained HTML
 - **RESTful API**: Simple HTTP endpoints for code generation and data management
 - **Host APIs**: Database, payments, messaging, and storage services for P2P apps
+- **SQLite Database**: Server-side data persistence with schema-free JSON storage
 - **CORS Support**: Pre-configured for cross-origin requests
 - **Environment Configuration**: Secure API key management via environment variables
 - **Logging**: Built-in request tracing and error logging
@@ -291,7 +293,6 @@ The server generates complete, self-contained HTML applications that include:
 - **Vite**: Build tool and dev server
 - **Jotai**: Atomic state management
 - **Tailwind CSS v4**: Styling framework
-- **SQLite (sqlocal)**: Local database via WebAssembly
 - **Lightning Development Kit**: Bitcoin/Lightning integration
 
 ### Backend (server/)
@@ -302,6 +303,7 @@ The server generates complete, self-contained HTML applications that include:
 - **tower-http**: CORS middleware
 - **tracing**: Logging and observability
 - **dotenv**: Environment variable loading
+- **sqlx**: Async SQLite database driver
 
 ## Error Handling
 

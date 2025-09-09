@@ -88,10 +88,18 @@ pub mod templates {
     pub fn chat_interface() -> &'static str {
         include_str!("../templates/chat.html")
     }
+
+    pub fn db_viewer() -> &'static str {
+        include_str!("../templates/db_viewer.html")
+    }
 }
 
 pub async fn index() -> axum::response::Html<&'static str> {
     axum::response::Html(templates::chat_interface())
+}
+
+pub async fn db_viewer() -> axum::response::Html<&'static str> {
+    axum::response::Html(templates::db_viewer())
 }
 
 pub async fn generate_code_stream(
@@ -368,9 +376,12 @@ pub fn create_router(database: Arc<db::Database>) -> Router {
 
     Router::new()
         .route("/", get(index))
+        .route("/db", get(db_viewer))
         .route("/generate/stream", post(generate_code_stream))
         // Database API routes
         .route("/api/db", get(api::list_collections))
+        .route("/api/db/query", post(api::execute_query))
+        .route("/api/db/reset", post(api::reset_database))
         .route(
             "/api/db/:collection",
             get(api::list_documents).post(api::create_document),

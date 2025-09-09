@@ -1,5 +1,4 @@
 import type { AppTable } from "@/types";
-import type { Selectable } from "kysely";
 import React, {
   createElement,
   lazy,
@@ -17,7 +16,7 @@ import { adaptiveIs3DModeAtom } from "@/state/3d";
 import { useAtomValue } from "jotai";
 
 interface AppRendererProps {
-  app: Selectable<AppTable>;
+  app: AppTable;
   component?: ComponentType;
 }
 

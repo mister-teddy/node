@@ -23,18 +23,22 @@ export default function AppList({
   }, [apps]);
 
   return (
-    <main className="flex-1 px-[5vw] py-8 min-w-0 box-border overflow-y-auto h-full">
+    <main className="flex-1 p-8 min-w-0 box-border overflow-y-auto h-full">
       <h1 className="text-3xl font-bold mb-8">
         {installedOnly ? "Dashboard" : "Store"}
       </h1>
-      <section className="w-full grid grid-cols-1 lg:grid-cols-3 lg:gap-10">
+      <section className="w-full grid grid-cols-1 xl:grid-cols-3 xl:gap-10">
         {appChunks.map((chunk, i) => (
           <div
             key={i}
-            className="flex flex-col border-b border-gray-200 lg:border-none last:border-none"
+            className="flex flex-col border-b border-gray-200 xl:border-none last:border-none"
           >
             {chunk.map((app) => (
-              <AppEntry key={app.id} app={app}>
+              <AppEntry
+                key={app.id}
+                app={app}
+                preferedSize={app.id === "db-viewer" ? [20, 9] : undefined}
+              >
                 {({ onClick }) => (
                   <div
                     key={app.id}

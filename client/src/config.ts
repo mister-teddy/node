@@ -1,7 +1,3 @@
-import CreateAppPage from "@/pages/create-app";
-import DashboardPage from "@/pages/dashboard";
-import HomePage from "@/pages/home";
-
 const CONFIG = {
   API: {
     BASE_URL: import.meta.env.DEV
@@ -17,19 +13,16 @@ const CONFIG = {
       path: "/",
       title: "Dashboard",
       icon: "🏡",
-      component: DashboardPage,
     },
     {
       path: "/store",
       title: "Store",
       icon: "⭐️",
-      component: HomePage,
     },
     {
       path: "/create-app",
       title: "Create App",
       icon: "🪄",
-      component: CreateAppPage,
     },
   ],
   WINDOW_LAYOUTS: {
@@ -54,6 +47,6 @@ const CONFIG = {
       ],
     },
   },
-};
+} as const;
 
 export default CONFIG;

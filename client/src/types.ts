@@ -1,4 +1,3 @@
-import type { Kysely, Selectable } from "kysely";
 import type React from "react";
 
 export type SqlValue = string | number | boolean | null;
@@ -13,8 +12,8 @@ export interface AppTable {
   name: string;
   description: string;
   icon: string;
-  price?: number;
-  version?: string;
+  price: number | undefined;
+  version: string | undefined;
   installed: number;
 }
 
@@ -22,9 +21,8 @@ export interface DB {
   apps: AppTable;
 }
 
-export type AppProps<T> = {
-  db: Kysely<T>;
-  app: Selectable<AppTable>;
+export type AppProps = {
+  app: AppTable;
   React: typeof React;
 };
 

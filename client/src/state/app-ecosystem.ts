@@ -13,7 +13,7 @@ subscribeDB("appsChanged", () => {
 
 export const appsAtom = atomWithRefresh(async () => {
   try {
-    const apps = await db.selectFrom("apps").selectAll().execute();
+    const apps = await db.getAllApps();
     return apps;
   } catch (error) {
     console.warn("Handled error: ", error);
@@ -39,7 +39,7 @@ export const appByIdAtom = atomFamily((id: string) =>
       return undefined;
     }
     return selectedApp;
-  })
+  }),
 );
 
 export const promptState = atomWithStorage("prompt", "");

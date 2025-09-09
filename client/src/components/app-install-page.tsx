@@ -1,10 +1,9 @@
 import type { AppTable } from "@/types";
-import type { Selectable } from "kysely";
 import AppIcon from "./app-icon";
 
 interface AppInstallPageProps {
   onInstall: () => void;
-  app: Selectable<AppTable>;
+  app: AppTable;
 }
 
 function AppInstallPage({ onInstall, app }: AppInstallPageProps) {

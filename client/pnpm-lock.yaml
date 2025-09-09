@@ -26,9 +26,6 @@ importers:
       jotai:
         specifier: ^2.13.1
         version: 2.13.1(@types/react@19.1.12)(react@19.1.1)
-      kysely:
-        specifier: ^0.28.5
-        version: 0.28.5
       react:
         specifier: ^19.1.1
         version: 19.1.1
@@ -44,9 +41,6 @@ importers:
       react-syntax-highlighter:
         specifier: ^15.6.6
         version: 15.6.6(react@19.1.1)
-      sqlocal:
-        specifier: ^0.14.2
-        version: 0.14.2(kysely@0.28.5)
       tailwindcss:
         specifier: ^4.1.12
         version: 4.1.12
@@ -603,10 +597,6 @@ packages:
   '@sinclair/typebox@0.25.24':
     resolution: {integrity: sha512-XJfwUVUKDHF5ugKwIcxEgc9k8b7HbznCp6eUfWgu710hMPNIO4aw4/zB5RogDQz8nd6gyCDpU9O/m6qYEWY6yQ==}
 
-  '@sqlite.org/sqlite-wasm@3.50.1-build1':
-    resolution: {integrity: sha512-yH4M/SHN98NibniIwTVk6rwTJjy7n39l7zwWY3u+qsfZBGTi4lC1uEl2NDvIlkzsFtfCBvHBJJFJ1iuU3UzzEQ==}
-    hasBin: true
-
   '@swc/core-darwin-arm64@1.13.5':
     resolution: {integrity: sha512-lKNv7SujeXvKn16gvQqUQI5DdyY8v7xcoO3k06/FJbHJS90zEwZdQiMNRiqpYw/orU543tPaWgz7cIYWhbopiQ==}
     engines: {node: '>=10'}
@@ -907,12 +897,6 @@ packages:
     resolution: {integrity: sha512-+GeGMebMCy0elMNg67LRNoVnUFPIm37iu5CmHESVx56/9Jsfdpsvbv605DQ81Pi/x11IdKUsS5nzgTYbCQU9fg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@ungap/structured-clone@1.3.0':
-    resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
-
-  '@ungap/with-resolvers@0.1.0':
-    resolution: {integrity: sha512-g7f0IkJdPW2xhY7H4iE72DAsIyfuwEFc6JWc2tYFwKDMWWAF699vGjrM348cwQuOXgHpe1gWFe+Eiyjx/ewvvw==}
-
   '@use-gesture/core@10.3.1':
     resolution: {integrity: sha512-WcINiDt8WjqBdUXye25anHiNxPc0VOrlT8F6LLkU6cycrOGUDyY/yyFmsg3k8i5OLvv25llc0QC45GhR/C8llw==}
 
@@ -1164,9 +1148,6 @@ packages:
 
   code-block-writer@10.1.1:
     resolution: {integrity: sha512-67ueh2IRGst/51p0n6FvPrnRjAGHY5F8xdjkgrYE7DDzpJe6qA07RYQ9VcoUeo5ATOjSOiWpSL3SWBRRbempMw==}
-
-  coincident@1.2.3:
-    resolution: {integrity: sha512-Uxz3BMTWIslzeWjuQnizGWVg0j6khbvHUQ8+5BdM7WuJEm4ALXwq3wluYoB+uF68uPBz/oUOeJnYURKyfjexlA==}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -1621,9 +1602,6 @@ packages:
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
 
-  gc-hook@0.3.1:
-    resolution: {integrity: sha512-E5M+O/h2o7eZzGhzRZGex6hbB3k4NWqO0eA+OzLRLXxhdbYPajZnynPwAtphnh+cRHPwsj5Z80dqZlfI4eK55A==}
-
   generic-pool@3.4.2:
     resolution: {integrity: sha512-H7cUpwCQSiJmAHM4c/aFu6fUfrhWXW1ncyh8ftxEPMu6AiYkHw9K8br720TGPZJbk5eOH2bynjZD1yPvdDAmag==}
     engines: {node: '>= 4'}
@@ -1874,10 +1852,6 @@ packages:
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
-
-  kysely@0.28.5:
-    resolution: {integrity: sha512-rlB0I/c6FBDWPcQoDtkxi9zIvpmnV5xoIalfCMSMCa7nuA6VGA3F54TW9mEgX4DVf10sXAWCF5fDbamI/5ZpKA==}
-    engines: {node: '>=20.0.0'}
 
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
@@ -2274,9 +2248,6 @@ packages:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
 
-  proxy-target@3.0.2:
-    resolution: {integrity: sha512-FFE1XNwXX/FNC3/P8HiKaJSy/Qk68RitG/QEcLy/bVnTAPlgTAWPZKh0pARLAnpfXQPKyalBhk009NRTgsk8vQ==}
-
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
@@ -2473,17 +2444,6 @@ packages:
 
   space-separated-tokens@1.1.5:
     resolution: {integrity: sha512-q/JSVd1Lptzhf5bkYm4ob4iWPjx0KiRe3sRFBNrVqbJkFaBm5vbbowy1mymoPNLRa52+oadOhJ+K49wsSeSjTA==}
-
-  sqlocal@0.14.2:
-    resolution: {integrity: sha512-U2NLx7rUABfBaOc9404gljuMirpXR7Tlvza/oA2A5yFfKG1ntCNvxEe4cdNKsirjZyI8ri8uW5Ise9NJOyBrBw==}
-    peerDependencies:
-      drizzle-orm: '*'
-      kysely: '*'
-    peerDependenciesMeta:
-      drizzle-orm:
-        optional: true
-      kysely:
-        optional: true
 
   stat-mode@0.3.0:
     resolution: {integrity: sha512-QjMLR0A3WwFY2aZdV0okfFEJB5TRjkggXZjxP3A1RsWsNHNu3YPv8btmtc6iCFZ0Rul3FE93OYogvhOUClU+ng==}
@@ -2800,18 +2760,6 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
-
-  ws@8.18.3:
-    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
 
   xdg-app-paths@5.1.0:
     resolution: {integrity: sha512-RAQ3WkPf4KTU1A8RtFx3gWywzVKe00tfOPFfl2NDGqbIFENQO4kqAJp7mhQjNj/33W5x5hiWWUdyfPq/5SU3QA==}
@@ -3281,8 +3229,6 @@ snapshots:
 
   '@sinclair/typebox@0.25.24': {}
 
-  '@sqlite.org/sqlite-wasm@3.50.1-build1': {}
-
   '@swc/core-darwin-arm64@1.13.5':
     optional: true
 
@@ -3571,10 +3517,6 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.41.0
       eslint-visitor-keys: 4.2.1
-
-  '@ungap/structured-clone@1.3.0': {}
-
-  '@ungap/with-resolvers@0.1.0': {}
 
   '@use-gesture/core@10.3.1': {}
 
@@ -3928,18 +3870,6 @@ snapshots:
   cjs-module-lexer@1.2.3: {}
 
   code-block-writer@10.1.1: {}
-
-  coincident@1.2.3:
-    dependencies:
-      '@ungap/structured-clone': 1.3.0
-      '@ungap/with-resolvers': 0.1.0
-      gc-hook: 0.3.1
-      proxy-target: 3.0.2
-    optionalDependencies:
-      ws: 8.18.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
   color-convert@2.0.1:
     dependencies:
@@ -4383,8 +4313,6 @@ snapshots:
 
   function-bind@1.1.2: {}
 
-  gc-hook@0.3.1: {}
-
   generic-pool@3.4.2: {}
 
   get-intrinsic@1.3.0:
@@ -4617,8 +4545,6 @@ snapshots:
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
-
-  kysely@0.28.5: {}
 
   levn@0.4.1:
     dependencies:
@@ -4935,8 +4861,6 @@ snapshots:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
 
-  proxy-target@3.0.2: {}
-
   punycode@2.3.1: {}
 
   qs@6.14.0:
@@ -5156,16 +5080,6 @@ snapshots:
   source-map-js@1.2.1: {}
 
   space-separated-tokens@1.1.5: {}
-
-  sqlocal@0.14.2(kysely@0.28.5):
-    dependencies:
-      '@sqlite.org/sqlite-wasm': 3.50.1-build1
-      coincident: 1.2.3
-    optionalDependencies:
-      kysely: 0.28.5
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
   stat-mode@0.3.0: {}
 
@@ -5471,9 +5385,6 @@ snapshots:
       strip-ansi: 7.1.0
 
   wrappy@1.0.2: {}
-
-  ws@8.18.3:
-    optional: true
 
   xdg-app-paths@5.1.0:
     dependencies:

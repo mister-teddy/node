@@ -1,6 +1,7 @@
 import { enabled3DModeAtom, adaptiveIs3DModeAtom } from "@/state/3d";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useState, useRef, useEffect } from "react";
+import { hostAPI } from "@/libs/host-api";
 
 export default function Profile() {
   const [open, setOpen] = useState(false);
@@ -67,13 +68,21 @@ export default function Profile() {
           <button
             className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
             onClick={async () => {
-              const opfsRoot = await navigator.storage.getDirectory();
-              if (
-                "remove" in opfsRoot &&
-                typeof opfsRoot.remove === "function"
-              ) {
-                opfsRoot.remove();
+              try {
+                // Reset server-side database using hostAPI
+                await hostAPI.db.reset();
+              } catch (error) {
+                console.warn("Failed to reset server database:", error);
               }
+
+              // Clear any browser storage that might still be used
+              try {
+                localStorage.clear();
+                sessionStorage.clear();
+              } catch (error) {
+                console.warn("Failed to clear browser storage:", error);
+              }
+
               location.reload();
             }}
           >

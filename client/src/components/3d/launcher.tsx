@@ -2,6 +2,7 @@ import CONFIG from "@/config";
 import Profile from "../profile";
 import Window3D from "./window";
 import AppEntry from "../app-entry";
+import { PAGES } from "@/pages";
 
 export default function Launcher3D() {
   return (
@@ -23,9 +24,9 @@ export default function Launcher3D() {
                 installed: 1,
               }}
               preferedSize={
-                ["/", "/store"].includes(item.path) ? [16, 9] : undefined
+                ["/", "/store"].includes(item.path) ? [20, 9] : undefined
               }
-              component={item.component}
+              component={PAGES[item.path]}
             >
               {({ onClick }) => (
                 <button

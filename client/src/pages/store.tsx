@@ -1,7 +1,7 @@
 import AppList from "@/components/app-list";
 
-const HomePage: React.FC = () => {
+const StorePage: React.FC = () => {
   return <AppList />;
 };
 
-export default HomePage;
+export default StorePage;

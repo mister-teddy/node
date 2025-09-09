@@ -15,6 +15,11 @@ pub struct ListQuery {
     pub offset: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct QueryRequest {
+    pub query: String,
+}
+
 pub async fn create_document(
     State(app_state): State<AppState>,
     Path(collection): Path<String>,
@@ -138,6 +143,39 @@ pub async fn list_collections(
         }))),
         Err(e) => {
             tracing::error!("Failed to list collections: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn execute_query(
+    State(app_state): State<AppState>,
+    JsonBody(req): JsonBody<QueryRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    match app_state.database.execute_raw_query(&req.query).await {
+        Ok(result) => Ok(Json(serde_json::json!({
+            "data": result,
+            "message": "Query executed successfully"
+        }))),
+        Err(e) => {
+            tracing::error!("Failed to execute query: {}", e);
+            Err(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+pub async fn reset_database(
+    State(app_state): State<AppState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    match app_state.database.reset_database().await {
+        Ok(()) => {
+            tracing::info!("Database reset successfully");
+            Ok(Json(serde_json::json!({
+                "message": "Database reset successfully. All data has been cleared."
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Failed to reset database: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

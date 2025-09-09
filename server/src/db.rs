@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{Pool, Row, Sqlite, SqlitePool};
+use sqlx::{Column, Pool, Row, Sqlite, SqlitePool};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -247,5 +247,90 @@ impl Database {
             .await?;
 
         Ok(rows.into_iter().map(|row| row.get("collection")).collect())
+    }
+
+    pub async fn execute_raw_query(
+        &self,
+        query: &str,
+    ) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+        let trimmed_query = query.trim().to_lowercase();
+
+        // Only allow SELECT and PRAGMA queries for security
+        if !trimmed_query.starts_with("select") && !trimmed_query.starts_with("pragma") {
+            return Err(sqlx::Error::Configuration(
+                "Only SELECT and PRAGMA queries are allowed".into(),
+            ));
+        }
+
+        let rows = sqlx::query(query).fetch_all(&self.pool).await?;
+
+        let mut results = Vec::new();
+
+        for row in rows {
+            let mut json_row = serde_json::Map::new();
+
+            // Get all column names and values
+            for (i, column) in row.columns().iter().enumerate() {
+                let column_name = column.name();
+
+                // Try to get the value as different types
+                let value = if let Ok(val) = row.try_get::<String, _>(i) {
+                    serde_json::Value::String(val)
+                } else if let Ok(val) = row.try_get::<i64, _>(i) {
+                    serde_json::Value::Number(val.into())
+                } else if let Ok(val) = row.try_get::<f64, _>(i) {
+                    serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
+                } else if let Ok(val) = row.try_get::<bool, _>(i) {
+                    serde_json::Value::Bool(val)
+                } else {
+                    // If we can't convert it, try as string or null
+                    row.try_get::<Option<String>, _>(i)
+                        .map(|opt| {
+                            opt.map(serde_json::Value::String)
+                                .unwrap_or(serde_json::Value::Null)
+                        })
+                        .unwrap_or(serde_json::Value::Null)
+                };
+
+                json_row.insert(column_name.to_string(), value);
+            }
+
+            results.push(serde_json::Value::Object(json_row));
+        }
+
+        Ok(results)
+    }
+
+    pub async fn reset_database(&self) -> Result<(), sqlx::Error> {
+        // Drop the documents table
+        sqlx::query("DROP TABLE IF EXISTS documents")
+            .execute(&self.pool)
+            .await?;
+
+        // Recreate the documents table with indexes
+        sqlx::query(
+            r#"
+            CREATE TABLE documents (
+                id TEXT PRIMARY KEY,
+                collection TEXT NOT NULL,
+                data TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // Recreate indexes
+        sqlx::query("CREATE INDEX idx_collection ON documents(collection)")
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query("CREATE INDEX idx_created_at ON documents(created_at)")
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
     }
 }
