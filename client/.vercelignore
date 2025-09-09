@@ -1,0 +1,25 @@
+# Rust build artifacts
+server/target/
+server/Cargo.lock
+
+# Development files
+server/src/main.rs
+server/.env
+
+# Node modules (if any)
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+.tmp/
+.cache/

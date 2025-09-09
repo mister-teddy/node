@@ -1,0 +1,28 @@
+{
+  "name": "Node ノート",
+  "description": "A personal server built for the emerging agentic economy.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-1.png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot-2.png",
+      "form_factor": "wide"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone"
+}
