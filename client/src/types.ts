@@ -15,6 +15,7 @@ export interface AppTable {
   price: number | undefined;
   version: string | undefined;
   installed: number;
+  source_code?: string;
 }
 
 export interface DB {

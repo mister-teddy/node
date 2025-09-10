@@ -32,14 +32,15 @@ export const storeAppsAtom = atom(async (get) => {
 });
 
 export const appByIdAtom = atomFamily((id: string) =>
-  atom(async (get) => {
-    const apps = await get(appsAtom);
-    const selectedApp = apps.find((app) => app.id === id);
-    if (!selectedApp) {
+  atom(async () => {
+    try {
+      const result = await db.getAppById(id);
+      return result;
+    } catch (error) {
+      console.error(`Failed to get app ${id}:`, error);
       return undefined;
     }
-    return selectedApp;
-  }),
+  })
 );
 
 export const promptState = atomWithStorage("prompt", "");

@@ -1,23 +1,21 @@
 import type { AppTable } from "@/types";
 import React, {
   createElement,
-  lazy,
   memo,
-  Suspense,
+  useMemo,
   type ComponentType,
   type FunctionComponent,
 } from "react";
 import { createPortal } from "react-dom";
-import db from "@/libs/db";
-import Spinner from "./spinner";
 import { useNavigate } from "react-router-dom";
 import CloseIcon from "./icons/close";
 import { adaptiveIs3DModeAtom } from "@/state/3d";
 import { useAtomValue } from "jotai";
+import { hostAPI } from "@/libs/host-api";
 
 interface AppRendererProps {
   app: AppTable;
-  component?: ComponentType;
+  component?: ComponentType<{ app: AppTable }>;
 }
 
 const CloseButton = () => {
@@ -41,24 +39,93 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
 }) => {
   const is3D = useAtomValue(adaptiveIs3DModeAtom);
 
-  const content = (
-    <Suspense fallback={<Spinner />}>
-      {component
-        ? createElement(component)
-        : createElement(
-            lazy(() =>
-              import.meta.env.DEV
-                ? import(`../apps/${app.id}`)
-                : import(`/apps/${app.id}.js`)
-            ),
+  // Execute JavaScript code if provided, otherwise use component prop
+  const DynamicComponent = useMemo(() => {
+    if (app.source_code) {
+      try {
+        // Create a safe execution context
+        const createAppComponent = new Function(
+          "React",
+          "app",
+          "hostAPI",
+          app.source_code
+        );
+
+        // Execute the code and get the component
+        const AppComponent = createAppComponent(React, app, hostAPI);
+
+        // Return a wrapper component that passes the right props
+        return () => AppComponent({ React, app, hostAPI });
+      } catch (error) {
+        console.error("Failed to execute app source code:", error);
+        return () =>
+          React.createElement(
+            "div",
             {
-              app,
-              db,
-              React,
-            }
-          )}
-    </Suspense>
-  );
+              className: "flex items-center justify-center min-h-screen p-8",
+            },
+            React.createElement(
+              "div",
+              {
+                className: "text-center",
+              },
+              React.createElement("div", { className: "text-6xl mb-4" }, "⚠️"),
+              React.createElement(
+                "h2",
+                {
+                  className: "text-xl font-bold text-red-600 mb-2",
+                },
+                "App Execution Error"
+              ),
+              React.createElement(
+                "p",
+                {
+                  className: "text-gray-600",
+                },
+                `Failed to execute ${app.name}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`
+              )
+            )
+          );
+      }
+    }
+
+    // Fallback to component prop if no source code
+    return component ? () => createElement(component, { app }) : null;
+  }, [app, component]);
+
+  if (!DynamicComponent) {
+    return React.createElement(
+      "div",
+      {
+        className: "flex items-center justify-center min-h-screen p-8",
+      },
+      React.createElement(
+        "div",
+        {
+          className: "text-center",
+        },
+        React.createElement("div", { className: "text-6xl mb-4" }, "📱"),
+        React.createElement(
+          "h2",
+          {
+            className: "text-xl font-bold text-gray-800 mb-2",
+          },
+          "App Not Available"
+        ),
+        React.createElement(
+          "p",
+          {
+            className: "text-gray-600",
+          },
+          `${app.name} could not be loaded`
+        )
+      )
+    );
+  }
+
+  const content = React.createElement(DynamicComponent);
 
   if (is3D) {
     return content;

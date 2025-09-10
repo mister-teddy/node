@@ -1,18 +1,14 @@
-import { adaptiveIs3DModeAtom, windowsStatesAtom } from "@/state/3d";
+import { adaptiveIs3DModeAtom } from "@/state/3d";
 import type { AppTable } from "@/types";
-import { useAtomValue, useSetAtom } from "jotai";
-import {
-  type ComponentType,
-  type FunctionComponent,
-  type ReactNode,
-} from "react";
+import { useAtomValue } from "jotai";
+import { type FunctionComponent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import AppRenderer from "./app-renderer";
+import { useOpenAppAsWindow } from "@/hooks";
+import { appByIdAtom } from "@/state/app-ecosystem";
 
 interface AppEntryProps {
   app: AppTable;
   preferedSize?: [number, number];
-  component?: ComponentType;
   children: (renderProps: { onClick: () => void }) => ReactNode;
 }
 
@@ -34,40 +30,11 @@ const AppEntry3D: FunctionComponent<AppEntryProps> = ({
   app,
   preferedSize,
   children,
-  component,
 }) => {
-  const setWindows = useSetAtom(windowsStatesAtom);
+  const fullAppInfo = useAtomValue(appByIdAtom(app.id))!;
+  const [onClick] = useOpenAppAsWindow({ app: fullAppInfo, preferedSize });
 
-  return children({
-    onClick: async () => {
-      setWindows((prev) => {
-        // Cylindrical positioning constants
-        const RADIUS = 9; // Distance from center
-        const HEIGHT = 3; // Y position (eye level)
-        const MAX_WINDOWS = 12; // Maximum windows before overlapping
-
-        // Calculate angle for new window position
-        const windowIndex = prev.length;
-        const angleStep = (2 * Math.PI) / MAX_WINDOWS;
-        const angle = windowIndex * angleStep;
-
-        // Convert cylindrical coordinates to Cartesian
-        const x = Math.cos(angle) * RADIUS;
-        const z = Math.sin(angle) * RADIUS;
-
-        return [
-          ...prev,
-          {
-            title: app.name,
-            icon: app.icon,
-            component: component ? component : () => <AppRenderer app={app} />,
-            size: preferedSize,
-            position: [x, HEIGHT, z],
-          },
-        ];
-      });
-    },
-  });
+  return children({ onClick });
 };
 
 function AppEntry(props: AppEntryProps) {

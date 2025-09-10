@@ -21,113 +21,8 @@ function publishDB(event: DBEvent) {
   listeners[event].forEach((listener) => listener());
 }
 
-// Initialize apps in the server-side database
-async function initializeApps() {
-  try {
-    const randomVersion = () =>
-      `${Math.floor(Math.random() * 3) + 1}.${Math.floor(
-        Math.random() * 10
-      )}.${Math.floor(Math.random() * 10)}`;
-    const randomPrice = () => Number((Math.random() * 9.99).toFixed(2));
-
-    // Check if apps already exist
-    const existingApps = await hostAPI.db.list("apps");
-
-    if (existingApps.documents.length === 0) {
-      // Create default apps
-      const defaultApps = [
-        {
-          id: "notepad",
-          name: "Notepad",
-          description: "A simple notepad for quick notes and ideas.",
-          version: randomVersion(),
-          price: 0,
-          icon: "📝",
-          installed: 1,
-        },
-        {
-          id: "db-viewer",
-          name: "DB Viewer",
-          description:
-            "Browse and manage your database collections and documents.",
-          version: randomVersion(),
-          price: 0,
-          icon: "🗃️",
-          installed: 1,
-        },
-        {
-          id: "to-do-list",
-          name: "To-Do List",
-          description: "Manage your tasks and stay organized.",
-          version: randomVersion(),
-          price: randomPrice(),
-          icon: "✅",
-          installed: 0,
-        },
-        {
-          id: "calendar",
-          name: "Calendar",
-          description: "View and schedule your events easily.",
-          version: randomVersion(),
-          price: randomPrice(),
-          icon: "📅",
-          installed: 0,
-        },
-        {
-          id: "chess",
-          name: "Chess",
-          description: "Play chess and challenge your mind.",
-          version: randomVersion(),
-          price: randomPrice(),
-          icon: "♟️",
-          installed: 0,
-        },
-        {
-          id: "file-drive",
-          name: "File Drive",
-          description: "Store and access your files securely.",
-          version: randomVersion(),
-          price: randomPrice(),
-          icon: "🗂️",
-          installed: 0,
-        },
-        {
-          id: "calculator",
-          name: "Calculator",
-          description: "Perform quick calculations and solve equations.",
-          version: randomVersion(),
-          price: randomPrice(),
-          icon: "🧮",
-          installed: 0,
-        },
-        {
-          id: "stocks",
-          name: "Stocks",
-          description: "Track stock prices and market trends.",
-          version: randomVersion(),
-          price: randomPrice(),
-          icon: "📈",
-          installed: 0,
-        },
-      ];
-
-      // Create all apps
-      for (const app of defaultApps) {
-        await hostAPI.db.create("apps", app);
-      }
-
-      publishDB("appsChanged");
-    }
-  } catch (error) {
-    console.error("Failed to initialize apps:", error);
-  }
-}
-
 // Database operations for apps
 const db = {
-  // Initialize the database
-  init: initializeApps,
-
   // Get all apps
   getAllApps: async (): Promise<App[]> => {
     try {
@@ -149,6 +44,40 @@ const db = {
     }
   },
 
+  // Get a single app by ID (with source_code)
+  getAppById: async (appId: string): Promise<App | undefined> => {
+    try {
+      const apps = await hostAPI.db.list("apps");
+      const appDoc = apps.documents.find((doc) => doc.data.id === appId);
+
+      if (!appDoc) {
+        return undefined;
+      }
+
+      return {
+        id: String(appDoc.data.id || ""),
+        name: String(appDoc.data.name || ""),
+        description: String(appDoc.data.description || ""),
+        version: appDoc.data.version ? String(appDoc.data.version) : undefined,
+        price:
+          appDoc.data.price !== undefined
+            ? Number(appDoc.data.price)
+            : undefined,
+        icon: String(appDoc.data.icon || ""),
+        installed:
+          appDoc.data.installed !== undefined
+            ? Number(appDoc.data.installed)
+            : 0,
+        source_code: appDoc.data.source_code
+          ? String(appDoc.data.source_code)
+          : undefined,
+      };
+    } catch (error) {
+      console.error(`Failed to get app ${appId}:`, error);
+      return undefined;
+    }
+  },
+
   // Update an app
   updateApp: async (appId: string, updates: Partial<App>): Promise<void> => {
     try {
@@ -165,8 +94,5 @@ const db = {
     }
   },
 };
-
-// Initialize apps on module load
-initializeApps();
 
 export default db;

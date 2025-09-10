@@ -12,6 +12,7 @@ function AppPage() {
     return <NotFound />;
   }
 
+  // AppRenderer handles dynamic JavaScript execution from app.source_code
   return <AppRenderer app={app} />;
 }
 
