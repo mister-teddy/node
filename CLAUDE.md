@@ -205,22 +205,23 @@ Use these agents for specialized tasks within their domains.
 ## Backend Server Details
 
 ### HTTP Server (Axum)
-- **Routes**: `GET /` (health check), `POST /generate` (HTML generation)
+- **Routes**: `GET /` (health check), `POST /generate/stream` (JavaScript generation)
 - **CORS**: All origins allowed for decentralized access
 - **State**: Shared reqwest client for Anthropic API
 
 ### AI Integration
 - **Model**: Claude 3 Haiku via Messages API
-- **Purpose**: Generates complete, self-contained HTML apps
-- **System Prompt**: Extensive prompt engineering
-- **Output**: Returns AnthropicContent with generated HTML
+- **Purpose**: Generates complete, interactive JavaScript apps for AppRenderer
+- **System Prompt**: Optimized for function-based React components
+- **Output**: Streams JavaScript code compatible with AppRenderer execution context
 
 ### Generated Applications
-Creates self-contained PWA-compatible HTML with:
-- Inline CSS/JavaScript (no external dependencies)
-- Local storage for offline capability
-- Responsive design (mobile-first, 3D UI capable)
-- Interactive features using vanilla JavaScript
+Creates interactive React components with:
+- Function-based components using React.createElement
+- React hooks for state management and effects
+- Host API integration for data persistence
+- Responsive design with Tailwind CSS classes
+- Error boundaries for safe execution
 
 ### Dependencies
 - **axum** - Web framework

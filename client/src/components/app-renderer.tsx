@@ -16,6 +16,7 @@ import { hostAPI } from "@/libs/host-api";
 interface AppRendererProps {
   app: AppTable;
   component?: ComponentType<{ app: AppTable }>;
+  isPreview?: boolean;
 }
 
 const CloseButton = () => {
@@ -36,6 +37,7 @@ const CloseButton = () => {
 const AppRenderer: FunctionComponent<AppRendererProps> = ({
   app,
   component,
+  isPreview = false,
 }) => {
   const is3D = useAtomValue(adaptiveIs3DModeAtom);
 
@@ -48,7 +50,7 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
           "React",
           "app",
           "hostAPI",
-          app.source_code
+          app.source_code,
         );
 
         // Execute the code and get the component
@@ -75,7 +77,7 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
                 {
                   className: "text-xl font-bold text-red-600 mb-2",
                 },
-                "App Execution Error"
+                "App Execution Error",
               ),
               React.createElement(
                 "p",
@@ -84,9 +86,9 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
                 },
                 `Failed to execute ${app.name}: ${
                   error instanceof Error ? error.message : String(error)
-                }`
-              )
-            )
+                }`,
+              ),
+            ),
           );
       }
     }
@@ -112,22 +114,22 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
           {
             className: "text-xl font-bold text-gray-800 mb-2",
           },
-          "App Not Available"
+          "App Not Available",
         ),
         React.createElement(
           "p",
           {
             className: "text-gray-600",
           },
-          `${app.name} could not be loaded`
-        )
-      )
+          `${app.name} could not be loaded`,
+        ),
+      ),
     );
   }
 
   const content = React.createElement(DynamicComponent);
 
-  if (is3D) {
+  if (is3D || isPreview) {
     return content;
   }
 
@@ -136,7 +138,7 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
       {content}
       <CloseButton />
     </div>,
-    document.body
+    document.body,
   );
 };
 

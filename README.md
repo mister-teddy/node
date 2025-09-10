@@ -204,8 +204,8 @@ Health check endpoint that returns server status.
 P2P Mini Server is running!
 ```
 
-### POST `/generate`
-Generate HTML applications using AI.
+### POST `/generate/stream`
+Generate JavaScript applications using AI with streaming response.
 
 **Request Body:**
 ```json
@@ -215,12 +215,7 @@ Generate HTML applications using AI.
 ```
 
 **Response:**
-```json
-{
-  "text": "<div>...generated HTML code...</div>",
-  "type": "text"
-}
-```
+Server-sent events (SSE) stream with generated JavaScript code compatible with AppRenderer component.
 
 ### Database API (`/api/db`)
 RESTful endpoints for P2P apps to store and retrieve data:
@@ -236,14 +231,14 @@ RESTful endpoints for P2P apps to store and retrieve data:
 
 ### Generate a Todo List App
 ```bash
-curl -X POST http://127.0.0.1:10000/generate \
+curl -X POST http://127.0.0.1:10000/generate/stream \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Create a responsive todo list with local storage"}'
 ```
 
 ### Generate a Calculator
 ```bash
-curl -X POST http://127.0.0.1:10000/generate \
+curl -X POST http://127.0.0.1:10000/generate/stream \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Build a scientific calculator with history"}'
 ```
@@ -254,14 +249,14 @@ Open `store.html` in your browser to use the Node dashboard. The app list will b
 
 ## Generated Applications
 
-The server generates complete, self-contained HTML applications that include:
+The server generates complete, interactive JavaScript applications that include:
 
-- **Inline CSS**: All styling embedded within the HTML
-- **Vanilla JavaScript**: No external dependencies
-- **Responsive Design**: Mobile-friendly layouts
-- **Local Storage**: Data persistence capabilities
-- **Interactive Features**: Buttons, forms, animations, etc.
-- **Host API Integration**: Access to database, payments, and storage services
+- **React Components**: Function-based components using React.createElement
+- **State Management**: React hooks for interactive functionality
+- **Responsive Design**: Mobile-friendly layouts with Tailwind CSS
+- **Host API Integration**: Built-in access to database, payments, and storage services
+- **Error Handling**: Graceful error boundaries for safe execution
+- **AppRenderer Compatible**: Secure execution within the P2P ecosystem
 
 ### Supported Application Types
 

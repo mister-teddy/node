@@ -6,6 +6,59 @@ import { generatedCodeState, promptState } from "@/state/app-ecosystem";
 import { adaptiveIs3DModeAtom, windowsStatesAtom } from "@/state/3d";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { tomorrow } from "react-syntax-highlighter/dist/esm/styles/prism";
+import AppRenderer from "@/components/app-renderer";
+import React from "react";
+
+interface AppPreviewErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class AppPreviewErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  AppPreviewErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): AppPreviewErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("AppRenderer error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-full p-8 bg-red-50 border border-red-200 rounded-lg">
+          <div className="text-center">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h3 className="text-lg font-semibold text-red-800 mb-2">
+              App Preview Error
+            </h3>
+            <p className="text-sm text-red-600 mb-3">
+              The generated code contains errors and cannot be previewed.
+            </p>
+            <details className="text-xs text-red-500">
+              <summary className="cursor-pointer hover:text-red-700">
+                Show error details
+              </summary>
+              <pre className="mt-2 p-2 bg-red-100 rounded text-left whitespace-pre-wrap">
+                {this.state.error?.message || "Unknown error"}
+              </pre>
+            </details>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const CreateAppPage: React.FC = () => {
   const [prompt, setPrompt] = useAtom(promptState);
@@ -46,8 +99,20 @@ const CreateAppPage: React.FC = () => {
         const createdAppWindow = prev.find((w) => w.title === "Create App");
         if (createdAppWindow) {
           // If the window already exists, just bring it to front
+          const mockApp = {
+            id: "preview-app",
+            name: "Generated App Preview",
+            source_code: generatedCode,
+            description: "Preview of generated app",
+            icon: "🪄",
+            price: 0,
+            version: "1.0.0",
+            installed: 1,
+          };
           createdAppWindow.biFoldContent = (
-            <div dangerouslySetInnerHTML={{ __html: generatedCode }}></div>
+            <AppPreviewErrorBoundary>
+              <AppRenderer app={mockApp} isPreview={true} />
+            </AppPreviewErrorBoundary>
           );
           return [...prev];
         }
@@ -71,7 +136,7 @@ const CreateAppPage: React.FC = () => {
         },
         (token) => {
           setStreamingCode((prev) => prev + token);
-        }
+        },
       );
       setGeneratedCode(code);
       setStatus("Generation complete!");
@@ -137,10 +202,23 @@ const CreateAppPage: React.FC = () => {
                   {generatedCode}
                 </SyntaxHighlighter>
                 {!is3DMode && !!generatedCode && (
-                  <div
-                    className="flex-none basis-1/2"
-                    dangerouslySetInnerHTML={{ __html: generatedCode }}
-                  ></div>
+                  <div className="flex-none basis-1/2">
+                    <AppPreviewErrorBoundary>
+                      <AppRenderer
+                        app={{
+                          id: "preview-app",
+                          name: "Generated App Preview",
+                          source_code: generatedCode,
+                          description: "Preview of generated app",
+                          icon: "🪄",
+                          price: 0,
+                          version: "1.0.0",
+                          installed: 1,
+                        }}
+                        isPreview={true}
+                      />
+                    </AppPreviewErrorBoundary>
+                  </div>
                 )}
               </div>
             )}
