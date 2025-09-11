@@ -18,6 +18,22 @@ export const router = createBrowserRouter([
         path: "apps/:id",
         Component: AppPage,
       },
+      {
+        path: "projects",
+        Component: PAGES["/projects"],
+      },
+      {
+        path: "projects/:id/editor",
+        Component: PAGES["/create-app"],
+      },
+      {
+        path: "projects/:id/versions",
+        Component: PAGES["/create-app"],
+      },
+      {
+        path: "projects/:id/settings",
+        Component: PAGES["/create-app"],
+      },
     ]),
   },
 ]);

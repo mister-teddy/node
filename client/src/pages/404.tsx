@@ -7,7 +7,7 @@ export default function NotFound(props: { noToast?: boolean }) {
 
   useEffect(() => {
     if (!props.noToast) {
-      toast.error("Trang không tồn tại");
+      toast.error("Page not found");
     }
     navigate(-1 as To, {
       viewTransition: true,

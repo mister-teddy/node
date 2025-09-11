@@ -19,8 +19,8 @@ const CONFIG = {
       icon: "⭐️",
     },
     {
-      path: "/create-app",
-      title: "Create App",
+      path: "/projects",
+      title: "Projects",
       icon: "🪄",
     },
   ],

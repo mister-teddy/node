@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useAtomValue } from "jotai";
 import { adaptiveIs3DModeAtom, windowsStatesAtom } from "@/state/3d";
 import LayoutManager3D from "@/components/3d/layout-manager";
@@ -14,10 +14,17 @@ export function RootLayout() {
   const is3DMode = useAtomValue(adaptiveIs3DModeAtom);
   const navigate = useNavigate();
   const getWindows = useAtomCallback((get) => get(windowsStatesAtom));
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
+    // Skip navigation on initial mount to prevent redirect on page reload
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     if (!is3DMode) {
-      // If switching to 3D mode, ensure at least one window is open
+      // If switching to 2D mode, navigate to window path
       const lastWindow = getWindows().at(-1);
       const path = CONFIG.SIDEBAR_ITEMS.find(
         (item) => item.title === lastWindow?.title
@@ -26,6 +33,7 @@ export function RootLayout() {
         navigate(path);
       }
     } else {
+      // If switching to 3D mode, go to dashboard
       navigate("/");
     }
   }, [is3DMode]);

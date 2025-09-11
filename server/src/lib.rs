@@ -26,6 +26,44 @@ pub struct AppState {
 #[derive(Deserialize)]
 pub struct GenerateRequest {
     pub prompt: String,
+    pub model: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AnthropicModel {
+    pub id: String,
+    pub display_name: String,
+    pub created_at: String,
+    #[serde(rename = "type")]
+    pub model_type: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ModelsResponse {
+    pub data: Vec<AnthropicModel>,
+    pub has_more: bool,
+    pub first_id: Option<String>,
+    pub last_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub icon: String,
+    pub power: u8, // 1-5 rating for model capability
+    pub cost: u8, // 1-5 rating for resource consumption (1=cheap, 5=expensive)
+    pub speed: u8, // 1-5 rating for response speed (1=slow, 5=fast)
+    pub special_label: Option<String>, // "flagship", "most powerful", etc.
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ModelInfoResponse {
+    pub data: Vec<ModelInfo>,
+    pub has_more: bool,
+    pub first_id: Option<String>,
+    pub last_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -71,6 +109,17 @@ pub struct StreamingDelta {
     pub text: Option<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct UsageInfo {
+    pub input_tokens: i32,
+    pub output_tokens: i32,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct StreamingUsage {
+    pub usage: Option<UsageInfo>,
+}
+
 #[derive(Serialize)]
 pub struct AnthropicMessage {
     pub role: String,
@@ -103,12 +152,162 @@ pub mod prompts {
 // Prefill tokens to help guide the AI response format
 const PREFILL_TOKENS: &str = "function";
 
+// Model metadata with power ratings and special labels
+fn get_model_metadata(model_id: &str) -> ModelInfo {
+    match model_id {
+        "claude-3-haiku-20240307" => ModelInfo {
+            id: model_id.to_string(),
+            name: "Claude 3 Haiku".to_string(),
+            description: "Fast and cost-effective for simple tasks".to_string(),
+            icon: "⚡".to_string(),
+            power: 2,
+            cost: 1,
+            speed: 5,
+            special_label: None,
+        },
+        "claude-3-5-haiku-20241022" => ModelInfo {
+            id: model_id.to_string(),
+            name: "Claude 3.5 Haiku".to_string(),
+            description: "Enhanced speed and intelligence".to_string(),
+            icon: "🚀".to_string(),
+            power: 3,
+            cost: 2,
+            speed: 5,
+            special_label: Some("latest".to_string()),
+        },
+        "claude-3-5-sonnet-20241022" => ModelInfo {
+            id: model_id.to_string(),
+            name: "Claude 3.5 Sonnet".to_string(),
+            description: "Balanced performance and capability".to_string(),
+            icon: "🎼".to_string(),
+            power: 4,
+            cost: 3,
+            speed: 4,
+            special_label: Some("flagship".to_string()),
+        },
+        "claude-sonnet-4-20250514" => ModelInfo {
+            id: model_id.to_string(),
+            name: "Claude Sonnet 4".to_string(),
+            description: "Most advanced model with superior intelligence".to_string(),
+            icon: "🧠".to_string(),
+            power: 5,
+            cost: 4,
+            speed: 3,
+            special_label: Some("most powerful".to_string()),
+        },
+        "claude-3-opus-20240229" => ModelInfo {
+            id: model_id.to_string(),
+            name: "Claude 3 Opus".to_string(),
+            description: "Powerful model for complex tasks".to_string(),
+            icon: "💎".to_string(),
+            power: 5,
+            cost: 5,
+            speed: 2,
+            special_label: None,
+        },
+        _ => ModelInfo {
+            id: model_id.to_string(),
+            name: format!("Model {}", model_id),
+            description: "Advanced AI model".to_string(),
+            icon: "🤖".to_string(),
+            power: 3,
+            cost: 3,
+            speed: 3,
+            special_label: None,
+        },
+    }
+}
+
 pub async fn index() -> axum::response::Html<&'static str> {
     axum::response::Html(templates::chat_interface())
 }
 
 pub async fn db_viewer() -> axum::response::Html<&'static str> {
     axum::response::Html(templates::db_viewer())
+}
+
+pub async fn list_models(
+    State(app_state): State<AppState>,
+) -> Result<Json<ModelInfoResponse>, (axum::http::StatusCode, String)> {
+    let api_key = env::var("ANTHROPIC_API_KEY").map_err(|_| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "ANTHROPIC_API_KEY environment variable is required".to_string(),
+        )
+    })?;
+
+    let response = app_state
+        .client
+        .get("https://api.anthropic.com/v1/models")
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch models: {}", e);
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to fetch models: {}", e),
+            )
+        })?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        tracing::error!("Anthropic API error: {} - {}", status, error_text);
+        return Err((
+            axum::http::StatusCode::BAD_GATEWAY,
+            format!("Anthropic API error: {}", status),
+        ));
+    }
+
+    let models_response: ModelsResponse = response.json().await.map_err(|e| {
+        tracing::error!("Failed to parse models response: {}", e);
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to parse models response".to_string(),
+        )
+    })?;
+
+    // Map API response to our ModelInfo format with metadata
+    let mut model_infos: Vec<ModelInfo> = models_response
+        .data
+        .into_iter()
+        .map(|model| get_model_metadata(&model.id))
+        .collect();
+
+    // Sort by power (descending) then name
+    model_infos.sort_by(|a, b| {
+        let power_cmp = b.power.cmp(&a.power); // Descending order (most powerful first)
+        if power_cmp == std::cmp::Ordering::Equal {
+            a.name.cmp(&b.name)
+        } else {
+            power_cmp
+        }
+    });
+
+    let response = ModelInfoResponse {
+        data: model_infos,
+        has_more: models_response.has_more,
+        first_id: models_response.first_id,
+        last_id: models_response.last_id,
+    };
+
+    Ok(Json(response))
+}
+
+// Helper function to get model recommendations
+pub fn get_model_recommendations(models: &[ModelInfo]) -> serde_json::Value {
+    let most_cost_effective = models.iter().min_by_key(|m| m.cost);
+    let most_powerful = models.iter().max_by_key(|m| m.power);
+
+    serde_json::json!({
+        "mostCostEffective": most_cost_effective,
+        "mostPowerful": most_powerful
+    })
 }
 
 pub async fn generate_code_stream(
@@ -151,8 +350,10 @@ pub async fn generate_code_stream(
             },
         ];
 
+        let model = payload.model.as_deref().unwrap_or("claude-3-haiku-20240307");
+
         let body = serde_json::json!({
-            "model": "claude-3-haiku-20240307",
+            "model": model,
             "max_tokens": 4096,
             "temperature": 1.0,
             "system": system_message,
@@ -193,6 +394,7 @@ pub async fn generate_code_stream(
         let mut stream = response.bytes_stream();
         let mut buffer = String::new();
         let mut first_token = true;
+        let mut usage_info: Option<UsageInfo> = None;
 
         while let Some(chunk_result) = stream.next().await {
             let bytes = match chunk_result {
@@ -256,12 +458,34 @@ pub async fn generate_code_stream(
                                         }
                                     }
                                 }
+                                "message_delta" => {
+                                    // Try to extract usage information from message_delta events
+                                    if let Ok(usage_event) = serde_json::from_str::<StreamingUsage>(data_part) {
+                                        if let Some(usage) = usage_event.usage {
+                                            usage_info = Some(usage);
+                                        }
+                                    }
+                                }
                                 "message_stop" => {
+                                    // Send usage information before completing
+                                    if let Some(usage) = &usage_info {
+                                        let usage_event = serde_json::json!({
+                                            "type": "usage",
+                                            "input_tokens": usage.input_tokens,
+                                            "output_tokens": usage.output_tokens
+                                        });
+                                        yield Ok(Event::default().event("usage").data(serde_json::to_string(&usage_event).unwrap_or_default()));
+                                    }
                                     yield Ok(Event::default().data("Generation complete!"));
                                     return;
                                 }
                                 _ => {
-                                    // Ignore other event types for now
+                                    // Try to parse any event for usage information
+                                    if let Ok(usage_event) = serde_json::from_str::<StreamingUsage>(data_part) {
+                                        if let Some(usage) = usage_event.usage {
+                                            usage_info = Some(usage);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -299,6 +523,7 @@ pub fn create_router(database: Arc<db::Database>) -> Router {
     Router::new()
         .route("/", get(index))
         .route("/db", get(db_viewer))
+        .route("/models", get(list_models))
         .route("/generate/stream", post(generate_code_stream))
         // Database API routes
         .route("/api/db", get(api::list_collections))
