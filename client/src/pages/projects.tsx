@@ -21,11 +21,6 @@ const ProjectsPage: FC = () => {
     setProjects(loadedProjects);
   };
 
-  const handleProjectCreated = (project: AppProject) => {
-    loadProjects();
-    setShowCreateApp(false);
-    navigate(`/projects/${project.id}/editor`);
-  };
 
   const handleSelectProject = (project: AppProject) => {
     navigate(`/projects/${project.id}/editor`);
@@ -45,7 +40,8 @@ const ProjectsPage: FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
           {!showCreateApp && (
             <Button onClick={() => setShowCreateApp(true)}>
-              Create New App
+              <span className="text-lg mr-1">✨</span>
+              Create App
             </Button>
           )}
           {showCreateApp && (
@@ -63,7 +59,7 @@ const ProjectsPage: FC = () => {
         {showCreateApp ? (
           <div className="h-full overflow-auto">
             <div className="max-w-2xl mx-auto">
-              <CreateAppGenerator onProjectCreated={handleProjectCreated} />
+              <CreateAppGenerator />
             </div>
           </div>
         ) : (

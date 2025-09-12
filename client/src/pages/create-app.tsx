@@ -1,13 +1,11 @@
 import { useState, useEffect, type FC } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProjectLayout } from "@/components/create-app/project-layout";
 import { AppMetadataForm } from "@/components/create-app/app-metadata-form";
-import { CodeEditor } from "@/components/create-app/code-editor";
+import { EnhancedEditor } from "@/components/create-app/enhanced-editor";
 import { VersionHistory } from "@/components/create-app/version-history";
-import { CodeModifier } from "@/components/create-app/code-modifier";
 import { AppProjectStorage } from "@/libs/app-projects";
-import { modifyAppCodeStream, generateAppCodeStream } from "@/libs/anthropic";
+import { modifyAppCodeStream, generateAppWithMetadata } from "@/libs/anthropic";
 import type { AppProject } from "@/types/app-project";
 import toast from "react-hot-toast";
 
@@ -53,19 +51,21 @@ const CreateAppPage: FC = () => {
     setStreamingCode("");
 
     try {
-      const generatedCode = await generateAppCodeStream(
+      const result = await generateAppWithMetadata(
         project.originalPrompt,
-        (status) => console.log("Status:", status),
-        (token) => {
-          setStreamingCode((prev) => prev + token);
-        },
         project.model,
+        () => {}, // Usage callback not needed here
       );
 
-      // Update the project with generated content
+      // Update the project with generated content and metadata
       const updatedProject = AppProjectStorage.update({
         id: project.id,
-        sourceCode: generatedCode,
+        name: result.metadata.name,
+        description: result.metadata.description,
+        icon: result.metadata.icon,
+        price: result.metadata.price,
+        version: result.metadata.version,
+        sourceCode: result.sourceCode,
       });
 
       if (updatedProject) {
@@ -172,12 +172,6 @@ const CreateAppPage: FC = () => {
     }
   };
 
-  const handleTabChange = (tab: string) => {
-    if (id && tab !== currentTab) {
-      navigate(`/projects/${id}/${tab}`);
-    }
-  };
-
   if (!selectedProject) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -189,72 +183,35 @@ const CreateAppPage: FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-hidden">
-        <Tabs
-          value={currentTab}
-          onValueChange={handleTabChange}
-          className="h-full flex flex-col"
-        >
-          <div className="flex-shrink-0 px-4 pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {selectedProject.name}
-              </h1>
-              <Button variant="outline" onClick={() => navigate("/projects")}>
-                ← Back to Projects
-              </Button>
-            </div>
-
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="editor">Editor</TabsTrigger>
-              <TabsTrigger value="versions">Versions</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <div className="flex-1 overflow-hidden p-4">
-            <TabsContent value="editor" className="h-full overflow-hidden">
-              <div className="h-full flex flex-col gap-4">
-                <CodeModifier
-                  project={selectedProject}
-                  onModifyCode={handleModifyCode}
-                  isModifying={isModifying}
-                />
-                <div className="flex-1 overflow-hidden">
-                  <CodeEditor
-                    project={selectedProject}
-                    onCodeChange={(code) =>
-                      handleUpdateProject({ sourceCode: code })
-                    }
-                    isGenerating={isModifying}
-                    streamingCode={streamingCode}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="versions" className="h-full overflow-auto">
-              <VersionHistory
-                project={selectedProject}
-                onSwitchVersion={handleSwitchVersion}
-                onDeleteVersion={handleDeleteVersion}
-              />
-            </TabsContent>
-
-            <TabsContent value="settings" className="h-full overflow-auto">
-              <div className="max-w-4xl mx-auto">
-                <AppMetadataForm
-                  project={selectedProject}
-                  onUpdate={handleUpdateProject}
-                  onPublish={handlePublishProject}
-                />
-              </div>
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
-    </div>
+    <ProjectLayout project={selectedProject} currentTab={currentTab}>
+      {{
+        editor: (
+          <EnhancedEditor
+            project={selectedProject}
+            onCodeChange={(code) =>
+              handleUpdateProject({ sourceCode: code })
+            }
+            onModifyCode={handleModifyCode}
+            isGenerating={isModifying}
+            streamingCode={streamingCode}
+          />
+        ),
+        versions: (
+          <VersionHistory
+            project={selectedProject}
+            onSwitchVersion={handleSwitchVersion}
+            onDeleteVersion={handleDeleteVersion}
+          />
+        ),
+        settings: (
+          <AppMetadataForm
+            project={selectedProject}
+            onUpdate={handleUpdateProject}
+            onPublish={handlePublishProject}
+          />
+        ),
+      }}
+    </ProjectLayout>
   );
 };
 
