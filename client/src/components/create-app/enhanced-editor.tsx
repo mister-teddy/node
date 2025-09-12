@@ -1,11 +1,13 @@
 import React, { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useAtomValue } from "jotai";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { tomorrow } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeModifier } from "@/components/create-app/code-modifier";
 import AppRenderer from "@/components/app-renderer";
-import type { AppProject } from "@/types/app-project";
+import { projectByIdAtom } from "@/state/app-ecosystem";
 import toast from "react-hot-toast";
 
 interface AppPreviewErrorBoundaryState {
@@ -59,30 +61,25 @@ class AppPreviewErrorBoundary extends React.Component<
   }
 }
 
-interface EnhancedEditorProps {
-  project: AppProject;
-  onCodeChange: (code: string) => void;
-  onModifyCode: (prompt: string) => Promise<void>;
-  isGenerating?: boolean;
-  streamingCode?: string;
-}
-
-export function EnhancedEditor({
-  project,
-  onCodeChange,
-  onModifyCode,
-  isGenerating = false,
-  streamingCode = "",
-}: EnhancedEditorProps) {
+export function EnhancedEditor() {
+  const { id } = useParams<{ id: string }>();
+  const project = useAtomValue(projectByIdAtom(id || ""));
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [isCodeExpanded, setIsCodeExpanded] = useState(false);
   const [showCodePanel, setShowCodePanel] = useState(false);
 
-  // Determine if this is a newly created app (no source code yet)
-  const isNewApp = !project.sourceCode.trim() && !isGenerating;
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-gray-500">
+          <p>Loading project...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Mark as used for future implementation
-  void onCodeChange;
+  // Determine if this is a newly created app (no source code yet)
+  const isNewApp = !project.sourceCode.trim();
 
   const detectLanguage = (code: string): string => {
     if (
@@ -106,7 +103,7 @@ export function EnhancedEditor({
     return "javascript";
   };
 
-  const currentCode = isGenerating ? streamingCode : project.sourceCode;
+  const currentCode = project.sourceCode;
 
   // For newly created apps, don't show the modify panel
   if (isNewApp) {
@@ -153,67 +150,13 @@ export function EnhancedEditor({
     );
   }
 
-  // During generation, show full source code panel and hide preview
-  if (isGenerating) {
-    return (
-      <div className="flex h-full">
-        {/* Left Sidebar - Modify Code */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-200 p-4">
-          <CodeModifier
-            project={project}
-            onModifyCode={onModifyCode}
-            isModifying={isGenerating}
-          />
-        </div>
-
-        {/* Full Source Code Panel during generation */}
-        <div className="flex-1 p-4">
-          <Card className="h-full">
-            <CardHeader className="flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Source Code - Generating...</CardTitle>
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden">
-              <div className="relative h-full">
-                <SyntaxHighlighter
-                  language={detectLanguage(currentCode)}
-                  style={tomorrow}
-                  customStyle={{
-                    margin: 0,
-                    padding: "1rem",
-                    fontSize: "0.875rem",
-                    borderRadius: "0",
-                    height: "100%",
-                    overflow: "auto",
-                  }}
-                  wrapLongLines={true}
-                  showLineNumbers={true}
-                >
-                  {currentCode || "// Generating code..."}
-                </SyntaxHighlighter>
-                {isGenerating && (
-                  <span className="absolute bottom-4 right-4 inline-block w-3 h-6 bg-blue-500 animate-pulse rounded"></span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   // After generation is complete
   return (
     <div className="flex h-full">
       {/* Left Sidebar - Modify Code */}
       <div className="w-80 flex-shrink-0 border-r border-gray-200 p-4">
-        <CodeModifier
-          project={project}
-          onModifyCode={onModifyCode}
-          isModifying={isGenerating}
-        />
+        <CodeModifier />
       </div>
 
       {/* Main Content Area */}

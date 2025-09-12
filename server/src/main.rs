@@ -9,7 +9,7 @@ async fn main() {
     // Initialize database
     let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:data.db".to_string());
     let database = Arc::new(
-        mini_server::db::Database::new(&database_url)
+        mini_server::database::Database::new(&database_url)
             .await
             .expect("Failed to initialize database"),
     );

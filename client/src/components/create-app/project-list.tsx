@@ -1,23 +1,45 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { formatDate } from "@/libs/utils";
-import type { AppProject } from "@/types/app-project";
+import { useNavigate } from "react-router-dom";
+import { useAtomValue } from "jotai";
+import { projectsAtom } from "@/state/app-ecosystem";
+import CONFIG from "@/config";
 
 interface ProjectListProps {
-  projects: AppProject[];
-  onSelectProject: (project: AppProject) => void;
-  onDeleteProject: (id: string) => void;
-  onDuplicateProject?: (id: string) => void;
   selectedProjectId?: string;
 }
 
-export function ProjectList({
-  projects,
-  onSelectProject,
-  onDeleteProject,
-  onDuplicateProject,
-  selectedProjectId,
-}: ProjectListProps) {
+export function ProjectList({ selectedProjectId }: ProjectListProps) {
+  const navigate = useNavigate();
+  const projects = useAtomValue(projectsAtom);
+
+  const handleDeleteProject = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+
+    try {
+      // Find the project by id
+      const project = projects.find((p) => p.id === id);
+      if (!project) return;
+
+      const response = await fetch(`${CONFIG.API.BASE_URL}/api/db/apps/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        // Refresh projects list
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+    }
+  };
   if (projects.length === 0) {
     return (
       <div className="text-center py-12">
@@ -40,7 +62,9 @@ export function ProjectList({
           className={`cursor-pointer transition-colors hover:bg-gray-50 ${
             selectedProjectId === project.id ? "ring-2 ring-blue-500" : ""
           }`}
-          onClick={() => onSelectProject(project)}
+          onClick={() => {
+            navigate(`/projects/${project.id}/editor`);
+          }}
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
@@ -54,25 +78,12 @@ export function ProjectList({
                 </div>
               </div>
               <div className="flex gap-1">
-                {onDuplicateProject && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDuplicateProject(project.id);
-                    }}
-                    className="h-8 w-8 p-0"
-                  >
-                    📋
-                  </Button>
-                )}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteProject(project.id);
+                    handleDeleteProject(project.id);
                   }}
                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
                 >
@@ -86,11 +97,13 @@ export function ProjectList({
               {project.description}
             </p>
             <div className="flex items-center justify-between text-xs text-gray-500">
-              <span className={`px-2 py-1 rounded-full ${
-                project.status === 'published'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-yellow-100 text-yellow-700'
-              }`}>
+              <span
+                className={`px-2 py-1 rounded-full ${
+                  project.status === "published"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-yellow-100 text-yellow-700"
+                }`}
+              >
                 {project.status}
               </span>
               <span>{formatDate(project.updatedAt)}</span>

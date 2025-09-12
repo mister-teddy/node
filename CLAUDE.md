@@ -22,10 +22,12 @@ P2P App Ecosystem - decentralized web store for creating, distributing, and purc
 **server/:** `src/main.rs` single-file server
 
 ## Development Patterns
-**DB:** Use `libs/db.ts`, subscribe via `subscribeDB` (frontend WASM), RESTful JSON (backend)  
-**State:** Jotai atoms (`appsAtom`, `installedAppsAtom`, `appByIdAtom`)  
+**DB:** Server-side SQLite with RESTful JSON API, no local storage for apps  
+**State:** Jotai async atoms (`projectsAtom`, `projectByIdAtom` for server data)  
 **API:** Route through Rust server, use `libs/anthropic.ts`  
-**Files:** Always **kebab-case**
+**Files:** Always **kebab-case**  
+**Data Flow:** Server database → async atoms → React components  
+**Compilation:** After editing code, verify it compiles without errors using `pnpm build` in client/ and `cargo check` in server/
 
 ## Specialized Agents
 1. **p2p-app-builder** - P2P apps following ecosystem principles  
@@ -33,9 +35,11 @@ P2P App Ecosystem - decentralized web store for creating, distributing, and purc
 3. **threejs-3d-ui-developer** - 3D UI (Node OS)
 
 ## Guidelines
-**Security:** API keys server-only, proxy all external calls, local-first storage  
+**Security:** API keys server-only, proxy all external calls  
+**Storage:** All app data server-side, use async atoms for state management  
 **Testing:** Check existing patterns, focus P2P/offline/Lightning flows  
-**Code:** Reuse 75%+ common functions, expand vs duplicate, use Shadcn UI
+**Code:** Reuse 75%+ common functions, expand vs duplicate, use Shadcn UI  
+**Migration:** Local storage deprecated, use `projectsAtom` and server API
 
 ## Server Details
 **Routes:** Health check, JS generation stream  

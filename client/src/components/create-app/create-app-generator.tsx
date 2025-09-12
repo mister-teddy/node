@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModelSelector } from "@/components/create-app/model-selector";
-import { AppProjectStorage } from "@/libs/app-projects";
-import { generateAppWithMetadata } from "@/libs/anthropic";
+import Spinner from "@/components/spinner";
+import { generateAppMetadata, createApp } from "@/libs/anthropic";
 import { useAtom, useAtomValue } from "jotai";
 import { modelsAtom, currentSelectedModelAtom } from "@/state/app-ecosystem";
 
@@ -30,31 +30,28 @@ export function CreateAppGenerator() {
     setError("");
 
     try {
-      // Call Rust mini server API to generate app with metadata
-      const { sourceCode, metadata } = await generateAppWithMetadata(
+      // Step 1: Generate app metadata first
+      const metadata = await generateAppMetadata(
         prompt.trim(),
         effectiveSelectedModel
       );
 
-      // Create project with generated metadata and code
-      const project = AppProjectStorage.create({
+      // Step 2: Create app in server database with metadata (without source code yet)
+      const appResponse = await createApp({
         prompt: prompt.trim(),
         model: effectiveSelectedModel,
-      });
-
-      // Update project with generated data
-      AppProjectStorage.update({
-        id: project.id,
         name: metadata.name,
         description: metadata.description,
-        icon: metadata.icon,
-        price: metadata.price,
         version: metadata.version,
-        sourceCode: sourceCode,
+        price: metadata.price,
+        icon: metadata.icon,
+        // source_code will be added later via streaming
       });
 
-      // Navigate to editor page to begin streaming
-      navigate(`/projects/${project.id}/editor`);
+      const appId = appResponse.data.data.id; // Extract app ID from server response
+
+      // Navigate to editor page where code will be generated via streaming
+      navigate(`/projects/${appId}/editor`);
       setPrompt("");
     } catch (err) {
       setError((err as Error).message || "Failed to create project.");
@@ -113,7 +110,16 @@ export function CreateAppGenerator() {
           className="w-full"
           size="lg"
         >
-          {isGenerating ? "Creating App..." : "Create App"}
+          {isGenerating ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4">
+                <Spinner />
+              </div>
+              Creating App...
+            </div>
+          ) : (
+            "Create App"
+          )}
         </Button>
       </CardContent>
     </Card>

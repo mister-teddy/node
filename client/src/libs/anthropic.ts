@@ -345,6 +345,70 @@ Return only the complete modified code, maintaining the same structure and forma
   return generateAppCodeStream(fullPrompt, onStatus, onToken, model, onUsage);
 }
 
+export async function generateAppMetadata(
+  prompt: string,
+  model?: string,
+): Promise<AppMetadata & { id: string }> {
+  const response = await fetch(`${CONFIG.API.BASE_URL}/generate/metadata`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt, model }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to generate metadata: ${errorText} (${response.status})`);
+  }
+
+  const metadata = await response.json();
+  return metadata;
+}
+
+export async function createApp(appData: {
+  prompt: string;
+  model: string;
+  name: string;
+  description: string;
+  version: string;
+  price: number;
+  icon: string;
+  source_code?: string;
+}): Promise<any> {
+  const response = await fetch(`${CONFIG.API.BASE_URL}/api/apps`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(appData),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create app: ${errorText} (${response.status})`);
+  }
+
+  return response.json();
+}
+
+export async function updateAppSourceCode(appId: string, sourceCode: string): Promise<any> {
+  const response = await fetch(`${CONFIG.API.BASE_URL}/api/apps/${appId}/source`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ source_code: sourceCode }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update app source code: ${errorText} (${response.status})`);
+  }
+
+  return response.json();
+}
+
 export function getModelRecommendations(models: ModelInfo[]) {
   const mostCostEffective = models.reduce((min, model) => 
     !min || model.cost < min.cost ? model : min, models[0] || null

@@ -1,29 +1,41 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
-import type { AppProject } from "@/types/app-project";
+import { projectByIdAtom } from "@/state/app-ecosystem";
 
-interface VersionHistoryProps {
-  project: AppProject;
-  onSwitchVersion: (versionNumber: number) => void;
-  onDeleteVersion: (versionNumber: number) => void;
-}
-
-export function VersionHistory({
-  project,
-  onSwitchVersion,
-  onDeleteVersion,
-}: VersionHistoryProps) {
+export function ProjectVersions() {
+  const { id } = useParams<{ id: string }>();
+  const project = useAtomValue(projectByIdAtom(id || ""));
   const [expandedVersion, setExpandedVersion] = useState<number | null>(null);
 
-  const sortedVersions = [...project.versions].sort((a, b) => b.versionNumber - a.versionNumber);
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-gray-500">
+          <p>Loading project...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sortedVersions = [...project.versions].sort(
+    (a, b) => b.versionNumber - a.versionNumber,
+  );
+
+  const handleSwitchVersion = (versionNumber: number) => {
+    console.log("Switch to version:", versionNumber);
+    // TODO: Implement version switching functionality
+  };
 
   const handleDeleteVersion = (versionNumber: number) => {
     if (confirm(`Are you sure you want to delete version ${versionNumber}?`)) {
-      onDeleteVersion(versionNumber);
+      console.log("Delete version:", versionNumber);
+      // TODO: Implement version deletion functionality
     }
   };
 
@@ -49,8 +61,12 @@ export function VersionHistory({
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Badge 
-                      variant={version.versionNumber === project.currentVersion ? "default" : "outline"}
+                    <Badge
+                      variant={
+                        version.versionNumber === project.currentVersion
+                          ? "default"
+                          : "outline"
+                      }
                       className="text-xs"
                     >
                       v{version.versionNumber}
@@ -66,23 +82,25 @@ export function VersionHistory({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onSwitchVersion(version.versionNumber)}
+                        onClick={() => handleSwitchVersion(version.versionNumber)}
                         className="text-xs h-6 px-2"
                       >
                         Switch
                       </Button>
                     )}
-                    {project.versions.length > 1 && 
-                     version.versionNumber !== project.currentVersion && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteVersion(version.versionNumber)}
-                        className="text-xs h-6 px-2 text-red-600 hover:text-red-700"
-                      >
-                        Delete
-                      </Button>
-                    )}
+                    {project.versions.length > 1 &&
+                      version.versionNumber !== project.currentVersion && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleDeleteVersion(version.versionNumber)
+                          }
+                          className="text-xs h-6 px-2 text-red-600 hover:text-red-700"
+                        >
+                          Delete
+                        </Button>
+                      )}
                   </div>
                 </div>
 
@@ -97,25 +115,31 @@ export function VersionHistory({
 
                 <div className="mb-2">
                   <button
-                    onClick={() => setExpandedVersion(
-                      expandedVersion === version.versionNumber ? null : version.versionNumber
-                    )}
+                    onClick={() =>
+                      setExpandedVersion(
+                        expandedVersion === version.versionNumber
+                          ? null
+                          : version.versionNumber,
+                      )
+                    }
                     className="text-sm text-gray-700 hover:text-gray-900 transition-colors text-left"
                   >
-                    <span className="font-medium">Prompt:</span> {
-                      version.prompt.length > 100 && expandedVersion !== version.versionNumber
-                        ? version.prompt.slice(0, 100) + "..."
-                        : version.prompt
-                    }
+                    <span className="font-medium">Prompt:</span>{" "}
+                    {version.prompt.length > 100 &&
+                    expandedVersion !== version.versionNumber
+                      ? version.prompt.slice(0, 100) + "..."
+                      : version.prompt}
                   </button>
                 </div>
 
                 {expandedVersion === version.versionNumber && (
                   <div className="mt-2 pt-2 border-t border-gray-200">
-                    <div className="text-xs text-gray-500 mb-1">Code Preview:</div>
+                    <div className="text-xs text-gray-500 mb-1">
+                      Code Preview:
+                    </div>
                     <div className="bg-gray-100 rounded p-2 text-xs font-mono max-h-32 overflow-auto">
                       {version.sourceCode ? (
-                        version.sourceCode.slice(0, 500) + 
+                        version.sourceCode.slice(0, 500) +
                         (version.sourceCode.length > 500 ? "..." : "")
                       ) : (
                         <span className="text-gray-400">No code generated</span>

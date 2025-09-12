@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Chrome Debugger",
+      "type": "chrome",
+      "request": "launch",
+      "webRoot": "${workspaceFolder}/client/src",
+      // The port is hardcoded here. VS Code launch.json does not natively support auto-detecting the port from pnpm dev.
+      // You must manually set the port, or use an environment variable if your dev server supports it.
+      "url": "http://localhost:5173",
+      "runtimeArgs": ["--window-size=1200,800", "--app=http://localhost:5173"]
+    }
+  ]
+}
