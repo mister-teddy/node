@@ -23,8 +23,8 @@ export const router = createBrowserRouter([
         Component: PAGES["/projects"],
       },
       {
-        path: "/create-app",
-        Component: PAGES["/create-app"],
+        path: "/projects/create",
+        Component: PAGES["/projects/create"],
       },
       {
         path: "apps/:id",

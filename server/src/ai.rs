@@ -15,11 +15,6 @@ pub struct GenerateRequest {
     pub model: Option<String>,
 }
 
-#[derive(Deserialize)]
-pub struct GenerateMetadataRequest {
-    pub prompt: String,
-    pub model: Option<String>,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct AppMetadata {
@@ -288,49 +283,45 @@ pub fn get_model_recommendations(models: &[ModelInfo]) -> serde_json::Value {
     })
 }
 
-pub async fn generate_metadata(
-    State(app_state): State<AppState>,
-    Json(payload): Json<GenerateMetadataRequest>,
-) -> Result<Json<AppMetadata>, (axum::http::StatusCode, String)> {
+
+// Helper function to generate code synchronously (non-streaming)
+pub async fn generate_code_sync(
+    app_state: &AppState,
+    prompt: &str,
+    model: Option<&str>,
+) -> Result<String, String> {
     let api_key = env::var("ANTHROPIC_API_KEY").map_err(|_| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "ANTHROPIC_API_KEY environment variable is required".to_string(),
-        )
+        "ANTHROPIC_API_KEY environment variable is required".to_string()
     })?;
 
-    let metadata_prompt = format!(
-        r#"Generate metadata for a P2P app based on this prompt: "{}"
-
-Return a JSON object with these exact fields:
-- id: kebab-case identifier (e.g., "todo-list")
-- name: App display name
-- description: Brief description (under 100 chars)
-- version: Semantic version (e.g., "1.0.0")
-- price: Price in USD (0.00 for free apps)
-- icon: Single emoji that represents the app
-
-Respond with only valid JSON, no other text."#,
-        payload.prompt
-    );
+    let system_message = crate::utils::get_app_renderer_prompt();
 
     let messages = vec![
         AnthropicMessage {
             role: "user".to_string(),
             content: vec![AnthropicMessageContent {
                 content_type: "text".to_string(),
-                text: metadata_prompt,
+                text: prompt.to_string(),
+            }],
+        },
+        AnthropicMessage {
+            role: "assistant".to_string(),
+            content: vec![AnthropicMessageContent {
+                content_type: "text".to_string(),
+                text: PREFILL_TOKENS.to_string(),
             }],
         },
     ];
 
-    let model = payload.model.as_deref().unwrap_or("claude-3-haiku-20240307");
+    let model = model.unwrap_or("claude-3-haiku-20240307");
 
     let body = serde_json::json!({
         "model": model,
-        "max_tokens": 1024,
-        "temperature": 0.3,
+        "max_tokens": 4096,
+        "temperature": 1.0,
+        "system": system_message,
         "messages": messages,
+        "stream": false,
     });
 
     let response = app_state
@@ -342,13 +333,7 @@ Respond with only valid JSON, no other text."#,
         .json(&body)
         .send()
         .await
-        .map_err(|e| {
-            tracing::error!("Request to Anthropic API failed: {}", e);
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to generate metadata: {}", e),
-            )
-        })?;
+        .map_err(|e| format!("Request to Anthropic API failed: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -356,41 +341,24 @@ Respond with only valid JSON, no other text."#,
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        tracing::error!("Anthropic API error: {} - {}", status, error_text);
-        return Err((
-            axum::http::StatusCode::BAD_GATEWAY,
-            format!("Anthropic API error: {}", status),
-        ));
+        return Err(format!("Anthropic API error: {} - {}", status, error_text));
     }
 
-    let anthropic_response: AnthropicResponse = response.json().await.map_err(|e| {
-        tracing::error!("Failed to parse Anthropic response: {}", e);
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to parse response".to_string(),
-        )
-    })?;
+    let anthropic_response: AnthropicResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Anthropic response: {}", e))?;
 
     let content = anthropic_response
         .content
         .as_ref()
         .and_then(|c| c.first())
-        .ok_or_else(|| {
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "No content in response".to_string(),
-            )
-        })?;
+        .ok_or_else(|| "No content in response".to_string())?;
 
-    let metadata: AppMetadata = serde_json::from_str(&content.text).map_err(|e| {
-        tracing::error!("Failed to parse metadata JSON: {}", e);
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Invalid metadata format: {}", e),
-        )
-    })?;
+    // Prepend the prefill tokens to fix the missing character issue
+    let full_content = format!("{}{}", PREFILL_TOKENS, content.text);
 
-    Ok(Json(metadata))
+    Ok(full_content)
 }
 
 pub async fn generate_code_stream(

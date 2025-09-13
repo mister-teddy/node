@@ -4,7 +4,7 @@ const CONFIG = {
       ? "http://localhost:10000"
       : "https://node-clqa.onrender.com",
     ENDPOINTS: {
-      GENERATE_STREAM: "/generate/stream",
+      GENERATE_STREAM: "/generate",
     },
   },
   SIDEBAR_ITEMS: [

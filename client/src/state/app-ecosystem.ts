@@ -6,7 +6,7 @@ import { fetchAvailableModels } from "../libs/anthropic";
 import type { ModelInfo } from "../libs/models";
 import { atomWithStorageAndFetch } from "@/libs/jotai";
 import CONFIG from "@/config";
-import type { AppProject } from "@/types/app-project";
+import type { AppProject, AppProjectVersion } from "@/types/app-project";
 
 // Server API types
 interface ServerResponse<T> {
@@ -22,16 +22,32 @@ interface ServerResponse<T> {
   };
 }
 
+interface VersionData {
+  id: string;
+  project_id: string;
+  version_number: number;
+  prompt: string;
+  source_code: string;
+  model?: string;
+  created_at: string;
+}
+
+interface ServerVersion {
+  id: string;
+  collection: string;
+  data: VersionData;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProjectData {
   id: string;
   name: string;
   description: string;
-  prompt: string;
-  source_code?: string;
-  model?: string;
   icon: string;
-  version: string;
   status: 'draft' | 'published';
+  current_version: number;
+  versions: ServerVersion[];
   created_at: string;
   updated_at: string;
 }
@@ -46,32 +62,58 @@ interface ServerProject {
 
 type ProjectsResponse = ServerResponse<ServerProject[]>;
 
+// Helper function to convert ServerVersion to AppProjectVersion
+function mapServerVersionToAppVersion(serverVersion: ServerVersion): AppProjectVersion {
+  const { data } = serverVersion;
+
+  const parseDate = (dateString: string): Date => {
+    if (!dateString) return new Date();
+    const parsed = new Date(dateString);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  return {
+    id: data.id,
+    versionNumber: data.version_number,
+    prompt: data.prompt,
+    sourceCode: data.source_code,
+    model: data.model,
+    createdAt: parseDate(data.created_at),
+  };
+}
+
 // Mapping function to convert ServerProject to AppProject
 function mapServerProjectToAppProject(serverProject: ServerProject): AppProject {
   const { data } = serverProject;
-  
+
   // Safe date parsing with fallback
   const parseDate = (dateString: string): Date => {
     if (!dateString) return new Date();
     const parsed = new Date(dateString);
     return isNaN(parsed.getTime()) ? new Date() : parsed;
   };
-  
+
+  // Map versions
+  const versions = (data.versions || []).map(mapServerVersionToAppVersion);
+
+  // Get current version data
+  const currentVersionData = versions.find(v => v.versionNumber === data.current_version);
+
   return {
     id: data.id,
     name: data.name,
     description: data.description,
     icon: data.icon,
     price: 0, // Default price, could be added to server schema later
-    version: data.version,
-    sourceCode: data.source_code || "",
+    version: `v${data.current_version}`,
+    sourceCode: currentVersionData?.sourceCode || "",
     createdAt: parseDate(data.created_at),
     updatedAt: parseDate(data.updated_at),
     status: data.status,
-    model: data.model,
-    originalPrompt: data.prompt,
-    currentVersion: 1, // Default to version 1
-    versions: [], // Empty versions array for now
+    model: currentVersionData?.model,
+    originalPrompt: currentVersionData?.prompt || "",
+    currentVersion: data.current_version,
+    versions: versions,
   };
 }
 
@@ -146,7 +188,7 @@ export const currentSelectedModelAtom = atom(
 // Server-side projects data management
 export const projectsAtom = atomWithRefresh(async (): Promise<AppProject[]> => {
   try {
-    const response = await fetch(`${CONFIG.API.BASE_URL}/api/db/apps`);
+    const response = await fetch(`${CONFIG.API.BASE_URL}/api/projects`);
     if (!response.ok) {
       throw new Error(`Failed to fetch projects: ${response.status}`);
     }
@@ -160,9 +202,21 @@ export const projectsAtom = atomWithRefresh(async (): Promise<AppProject[]> => {
 });
 
 export const projectByIdAtom = atomFamily((projectId: string) =>
-  atom(async (get): Promise<AppProject | null> => {
-    const projects = await get(projectsAtom);
-    return projects.find((project) => project.id === projectId) || null;
+  atom(async (): Promise<AppProject | null> => {
+    try {
+      const response = await fetch(`${CONFIG.API.BASE_URL}/api/projects/${projectId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Failed to fetch project: ${response.status}`);
+      }
+      const result: { data: ServerProject } = await response.json();
+      return mapServerProjectToAppProject(result.data);
+    } catch (error) {
+      console.error(`Failed to load project ${projectId} from server:`, error);
+      return null;
+    }
   }),
 );
 

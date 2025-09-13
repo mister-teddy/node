@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModelSelector } from "@/components/create-app/model-selector";
 import Spinner from "@/components/spinner";
-import { generateAppMetadata, createApp } from "@/libs/anthropic";
+import { createProject } from "@/libs/anthropic";
 import { useAtom, useAtomValue } from "jotai";
-import { modelsAtom, currentSelectedModelAtom } from "@/state/app-ecosystem";
+import { modelsAtom, currentSelectedModelAtom, projectsAtom } from "@/state/app-ecosystem";
+import { useAtomCallback } from "jotai/utils";
 
 export function CreateAppGenerator() {
   const [prompt, setPrompt] = useState("");
@@ -18,6 +19,11 @@ export function CreateAppGenerator() {
   // Use atoms for models and selected model
   const models = useAtomValue(modelsAtom);
   const [selectedModel, setSelectedModel] = useAtom(currentSelectedModelAtom);
+  
+  // Callback to refresh projects list after creation
+  const refreshProjects = useAtomCallback((_get, set) => {
+    set(projectsAtom);
+  });
 
   // Auto-select first model if none selected
   const effectiveSelectedModel =
@@ -30,28 +36,19 @@ export function CreateAppGenerator() {
     setError("");
 
     try {
-      // Step 1: Generate app metadata first
-      const metadata = await generateAppMetadata(
-        prompt.trim(),
-        effectiveSelectedModel
-      );
-
-      // Step 2: Create app in server database with metadata (without source code yet)
-      const appResponse = await createApp({
+      // Create project directly with prompt - server will handle metadata generation
+      const projectResponse = await createProject({
         prompt: prompt.trim(),
         model: effectiveSelectedModel,
-        name: metadata.name,
-        description: metadata.description,
-        version: metadata.version,
-        price: metadata.price,
-        icon: metadata.icon,
-        // source_code will be added later via streaming
       });
 
-      const appId = appResponse.data.data.id; // Extract app ID from server response
+      const projectId = projectResponse.data.data.id; // Extract project ID from server response
+
+      // Refresh projects list to show the new project
+      refreshProjects();
 
       // Navigate to editor page where code will be generated via streaming
-      navigate(`/projects/${appId}/editor`);
+      navigate(`/projects/${projectId}/editor`);
       setPrompt("");
     } catch (err) {
       setError((err as Error).message || "Failed to create project.");

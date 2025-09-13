@@ -182,7 +182,6 @@ export function CodeEditor({
                   version: project.version,
                   installed: 1,
                 }}
-                isPreview={true}
               />
             </AppPreviewErrorBoundary>
           </CardContent>

@@ -61,7 +61,7 @@ class AppPreviewErrorBoundary extends React.Component<
   }
 }
 
-export function EnhancedEditor() {
+export function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const project = useAtomValue(projectByIdAtom(id || ""));
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
@@ -146,7 +146,6 @@ export function EnhancedEditor() {
     );
   }
 
-
   // After generation is complete
   return (
     <div className="flex h-full">
@@ -158,7 +157,7 @@ export function EnhancedEditor() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Live Preview - Takes 1/2 of the screen */}
-        <div className={`${isCodeExpanded ? 'h-1/2' : 'flex-1'} min-h-0 p-4`}>
+        <div className={`${isCodeExpanded ? "h-1/2" : "flex-1"} min-h-0 p-4`}>
           <Card className="h-full">
             <CardHeader className="flex-shrink-0">
               <div className="flex items-center justify-between">
@@ -204,7 +203,9 @@ export function EnhancedEditor() {
 
         {/* Source Code - Toggle panel */}
         {showCodePanel && (
-          <div className={`${isCodeExpanded ? 'h-1/2' : 'h-48'} min-h-0 border-t border-gray-200 transition-all duration-300`}>
+          <div
+            className={`${isCodeExpanded ? "h-1/2" : "h-48"} min-h-0 border-t border-gray-200 transition-all duration-300`}
+          >
             <div className="h-full p-4">
               <Card className="h-full">
                 <CardHeader className="flex-shrink-0 py-2">

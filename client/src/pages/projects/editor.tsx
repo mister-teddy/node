@@ -7,7 +7,7 @@ import { projectByIdAtom } from "@/state/app-ecosystem";
 import { ProjectVersions } from "@/components/create-app/project-versions";
 import { ProjectSettings } from "@/components/create-app/project-settings";
 
-const CreateAppPage: FC = () => {
+const ProjectEditorPage: FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,4 +48,4 @@ const CreateAppPage: FC = () => {
   );
 };
 
-export default CreateAppPage;
+export default ProjectEditorPage;

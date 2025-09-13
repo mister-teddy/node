@@ -41,10 +41,7 @@ export const ProjectLayout: FC<ProjectLayoutProps> = ({
               <h1 className="text-2xl font-bold text-gray-900">
                 {project.name}
               </h1>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/projects")}
-              >
+              <Button variant="outline" onClick={() => navigate("/projects")}>
                 ← Back to Projects
               </Button>
             </div>
@@ -57,19 +54,27 @@ export const ProjectLayout: FC<ProjectLayoutProps> = ({
           </div>
 
           <div className="flex-1 overflow-hidden">
-            <TabsContent value="editor" className="h-full">
-              {children.editor}
-            </TabsContent>
-
-            <TabsContent value="versions" className="h-full overflow-auto p-4">
-              {children.versions}
-            </TabsContent>
-
-            <TabsContent value="settings" className="h-full overflow-auto p-4">
-              <div className="max-w-4xl mx-auto">
-                {children.settings}
-              </div>
-            </TabsContent>
+            {[
+              {
+                value: "editor",
+                className: "h-full",
+                content: children.editor,
+              },
+              {
+                value: "versions",
+                className: "h-full overflow-auto p-4",
+                content: children.versions,
+              },
+              {
+                value: "settings",
+                className: "h-full overflow-auto p-4",
+                content: children.settings,
+              },
+            ].map(({ value, className, content }) => (
+              <TabsContent key={value} value={value} className={className}>
+                {content}
+              </TabsContent>
+            ))}
           </div>
         </Tabs>
       </div>

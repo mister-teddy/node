@@ -3,12 +3,13 @@ import React, {
   createElement,
   memo,
   useMemo,
+  useState,
   type ComponentType,
   type FunctionComponent,
 } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
 import CloseIcon from "./icons/close";
+import FullscreenIcon from "./icons/fullscreen";
 import { adaptiveIs3DModeAtom } from "@/state/3d";
 import { useAtomValue } from "jotai";
 import { hostAPI } from "@/libs/host-api";
@@ -16,30 +17,14 @@ import { hostAPI } from "@/libs/host-api";
 interface AppRendererProps {
   app: AppTable;
   component?: ComponentType<{ app: AppTable }>;
-  isPreview?: boolean;
 }
-
-const CloseButton = () => {
-  const navigate = useNavigate();
-
-  return (
-    <button
-      onClick={() => {
-        navigate(-1);
-      }}
-      className="absolute top-4 right-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
-    >
-      <CloseIcon />
-    </button>
-  );
-};
 
 const AppRenderer: FunctionComponent<AppRendererProps> = ({
   app,
   component,
-  isPreview = false,
 }) => {
   const is3D = useAtomValue(adaptiveIs3DModeAtom);
+  const [fullscreen, setFullscreen] = useState(false);
 
   // Execute JavaScript code if provided, otherwise use component prop
   const DynamicComponent = useMemo(() => {
@@ -129,17 +114,48 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
 
   const content = React.createElement(DynamicComponent);
 
-  if (is3D || isPreview) {
+  // Always show buttons, but handle different layouts for fullscreen vs normal mode
+  if (is3D) {
+    // In 3D mode, don't show fullscreen controls
     return content;
   }
 
-  return createPortal(
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
-      {content}
-      <CloseButton />
-    </div>,
-    document.body,
+  // Shared fullscreen toggle overlay
+  const fullscreenToggle = (
+    <div className="absolute top-4 right-4 flex gap-2">
+      <button
+        onClick={() => {
+          if (document.startViewTransition) {
+            document.startViewTransition(() => setFullscreen((f) => !f));
+          } else {
+            setFullscreen((f) => !f);
+          }
+        }}
+        className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+        title={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+      >
+        {fullscreen ? <CloseIcon /> : <FullscreenIcon />}
+      </button>
+    </div>
   );
+
+  const overlay = (
+    <>
+      {content}
+      {fullscreenToggle}
+    </>
+  );
+
+  if (fullscreen) {
+    return createPortal(
+      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        {overlay}
+      </div>,
+      document.body,
+    );
+  }
+
+  return <div className="relative h-full">{overlay}</div>;
 };
 
 export default memo(AppRenderer, (prev, next) => {

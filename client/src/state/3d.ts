@@ -4,16 +4,16 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
 // 3D Mode State
-export const enabled3DModeAtom = atomWithStorage("is3DMode", true);
+export const enabled3DModeAtom = atomWithStorage("is3DMode", false);
 
 // Camera State
 export const cameraPositionAtom = atomWithStorage<[number, number, number]>(
   "cameraPosition",
-  [6.73052673149478, 2.6454633073348597, 21.455489862152568]
+  [6.73052673149478, 2.6454633073348597, 21.455489862152568],
 );
 export const cameraTargetAtom = atomWithStorage<[number, number, number]>(
   "cameraTarget",
-  [0, 0, 0]
+  [0, 0, 0],
 );
 
 export const windowConfigsAtom = atom<Record<string, WindowConfig>>({});
@@ -186,12 +186,12 @@ export const framesConfigAtom = atom<Record<string, FrameConfig>>({
 
 // Animation State
 export const animationStateAtom = atom<"idle" | "transitioning" | "zooming">(
-  "idle"
+  "idle",
 );
 
 export const windowsStatesAtom = atom<Active3DWindow[]>([]);
 
 export const environmentPresetAtom = atomWithStorage<PresetsType>(
   "environmentPreset",
-  "apartment"
+  "apartment",
 );

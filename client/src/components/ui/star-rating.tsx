@@ -22,14 +22,15 @@ export const StarRating: FC<StarRatingProps> = ({
   return (
     <div className={`flex items-center ${sizeClasses[size]} ${className}`}>
       {Array.from({ length: maxRating }, (_, i) => {
-        const starIndex = i + 1; // Convert 0-based index to 1-based
+        const starIndex = i + 1;
         const isGolden = starIndex <= rating;
         return (
           <span
             key={i}
-            className={isGolden ? "" : "grayscale"}
+            className={`transition-all duration-200 ${isGolden ? "" : "grayscale opacity-40"}`}
             style={{
-              textShadow: isGolden ? "0 0 2px rgba(245, 158, 11, 0.5)" : "none",
+              textShadow: isGolden ? "0 0 4px rgba(245, 158, 11, 0.6)" : "none",
+              filter: isGolden ? "drop-shadow(0 1px 2px rgba(245, 158, 11, 0.3))" : "none",
             }}
           >
             ⭐️
