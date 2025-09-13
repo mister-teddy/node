@@ -38,6 +38,7 @@ pub fn create_router(database: Arc<database::Database>) -> Router {
     Router::new()
         .route("/", get(redirect_to_frontend))
         .route("/generate", axum::routing::post(ai::generate_code_stream))
+        .route("/generate/modify", axum::routing::post(ai::modify_code_stream))
         .nest("/api", create_api_router())
         .layer(cors)
         .with_state(AppState {

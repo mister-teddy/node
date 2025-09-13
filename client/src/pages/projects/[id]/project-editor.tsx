@@ -287,6 +287,15 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
 export function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const project = useAtomValue(projectByIdAtom(id || ""));
+  const [isStreamingFromPrompt, setIsStreamingFromPrompt] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
+
+  const handleStreamingUpdate = (isStreaming: boolean, content?: string) => {
+    setIsStreamingFromPrompt(isStreaming);
+    if (content !== undefined) {
+      setStreamingContent(content);
+    }
+  };
 
   if (!project) {
     return (
@@ -320,7 +329,9 @@ export function ProjectEditor() {
     return "javascript";
   };
 
-  const currentCode = project.sourceCode;
+  const currentCode = isStreamingFromPrompt && streamingContent
+    ? streamingContent
+    : project.sourceCode;
 
   // If project has no versions (current_version === 0), show code generation UI
   if (project.currentVersion === 0 || !currentCode.trim()) {
@@ -333,11 +344,15 @@ export function ProjectEditor() {
       {/* Left Sidebar - Modify Code with Code Preview */}
       <div className="w-96 flex-shrink-0 flex flex-col p-4 pr-0 space-y-4">
         {/* Modify Code Panel */}
-        <NextPrompt />
+        <NextPrompt onStreamingUpdate={handleStreamingUpdate} />
 
         {/* Code Preview Panel - Always visible */}
         <div className="flex-1 min-h-0">
-          <Card className="h-full relative overflow-hidden">
+          <Card className={`h-full relative overflow-hidden ${
+            isStreamingFromPrompt
+              ? "border-blue-200 shadow-[0_0_0_1px_rgba(59,130,246,0.5)]"
+              : ""
+          }`}>
             {currentCode && (
               <Button
                 className="absolute bottom-2 right-2 z-10"
@@ -345,7 +360,10 @@ export function ProjectEditor() {
                 size="sm"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(currentCode);
+                    const codeToCopy = isStreamingFromPrompt && streamingContent
+                      ? streamingContent
+                      : project.sourceCode;
+                    await navigator.clipboard.writeText(codeToCopy);
                     toast.success("Code copied to clipboard!");
                   } catch (error) {
                     console.error("Failed to copy:", error);
@@ -355,6 +373,12 @@ export function ProjectEditor() {
               >
                 📋 Copy
               </Button>
+            )}
+            {isStreamingFromPrompt && (
+              <div className="absolute top-2 left-2 z-10 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                Live update
+              </div>
             )}
             <SyntaxHighlighter
               language={detectLanguage(currentCode)}
