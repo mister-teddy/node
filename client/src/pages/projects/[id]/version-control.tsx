@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,17 +10,26 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ProjectAPI, type ProjectVersion } from "@/libs/projects";
 import { formatDate } from "@/libs/utils";
+import {
+  projectVersionsAtom,
+  createVersionAtom,
+  convertToAppAtom,
+  type ProjectVersionData,
+} from "@/state/app-ecosystem";
 
 interface VersionControlProps {
   projectId: string;
-  onVersionCreate?: (version: ProjectVersion) => void;
+  onVersionCreate?: (version: ProjectVersionData) => void;
 }
 
 export function VersionControl({ projectId, onVersionCreate }: VersionControlProps) {
-  const [versions, setVersions] = useState<ProjectVersion[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use Jotai async atoms for server state
+  const versions = useAtomValue(projectVersionsAtom(projectId));
+  const createVersion = useSetAtom(createVersionAtom);
+  const convertToApp = useSetAtom(convertToAppAtom);
+
+  // Local UI state only
   const [isCreating, setIsCreating] = useState(false);
   const [showNewVersionForm, setShowNewVersionForm] = useState(false);
   const [newVersion, setNewVersion] = useState({
@@ -28,20 +38,6 @@ export function VersionControl({ projectId, onVersionCreate }: VersionControlPro
     model: "",
   });
 
-  useEffect(() => {
-    loadVersions();
-  }, [projectId]);
-
-  const loadVersions = async () => {
-    try {
-      const versionList = await ProjectAPI.getVersions(projectId);
-      setVersions(versionList.sort((a, b) => b.version_number - a.version_number));
-    } catch (error) {
-      console.error("Failed to load versions:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateVersion = async () => {
     if (!newVersion.prompt.trim() || !newVersion.source_code.trim()) {
@@ -51,19 +47,21 @@ export function VersionControl({ projectId, onVersionCreate }: VersionControlPro
 
     setIsCreating(true);
     try {
-      const version = await ProjectAPI.createVersion(projectId, {
-        prompt: newVersion.prompt,
-        source_code: newVersion.source_code,
-        model: newVersion.model || undefined,
+      const version = await createVersion({
+        projectId,
+        versionData: {
+          prompt: newVersion.prompt,
+          source_code: newVersion.source_code,
+          model: newVersion.model || undefined,
+        },
       });
 
-      await loadVersions(); // Refresh versions list
       onVersionCreate?.(version);
-      
+
       // Reset form
       setNewVersion({ prompt: "", source_code: "", model: "" });
       setShowNewVersionForm(false);
-      
+
     } catch (error) {
       console.error("Failed to create version:", error);
       alert("Failed to create version. Please try again.");
@@ -72,9 +70,6 @@ export function VersionControl({ projectId, onVersionCreate }: VersionControlPro
     }
   };
 
-  if (loading) {
-    return <div>Loading versions...</div>;
-  }
 
   return (
     <div className="space-y-4">
@@ -184,7 +179,8 @@ export function VersionControl({ projectId, onVersionCreate }: VersionControlPro
                       className="h-6 px-2 text-xs"
                       onClick={async () => {
                         try {
-                          await ProjectAPI.convertToApp(projectId, {
+                          await convertToApp({
+                            projectId,
                             version: version.version_number,
                             price: 0,
                           });

@@ -35,11 +35,14 @@ You are an expert React/TypeScript UI developer specializing in the P2P App Ecos
 4. **Typography Scale:** Use `font-semibold`, `font-medium` for weights and `text-lg`, `text-sm`, `text-xs` for sizes
 5. **File Naming:** Always use kebab-case for all file names
 
-## State Management Integration
-- Use Jotai async atoms for server data (`projectsAtom`, `projectByIdAtom`)
+## State Management Integration (MANDATORY)
+- **ALWAYS use Jotai async atoms** for ALL server data loading (`projectsAtom`, `projectByIdAtom`)
+- **NEVER use useState + useEffect + loadX patterns** - this is deprecated and breaks the architecture
+- **NEVER use local useState for API data** - all server state must go through async atoms
 - Route all API calls through the Rust server, never directly to external APIs
 - Leverage `libs/anthropic.ts` for AI-related functionality
 - Follow the established data flow: Server database → async atoms → React components
+- Use `useAtomValue(atomName)` to consume async atom data in components
 
 ## Technical Requirements
 - Write TypeScript with proper type definitions

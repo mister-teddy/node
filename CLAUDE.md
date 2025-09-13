@@ -29,6 +29,13 @@ P2P App Ecosystem - decentralized web store for creating, distributing, and purc
 - Server handlers: Split by domain (database.rs, apps.rs, auth.rs)
 - Client components: Group by feature or UI pattern
 - Use mod.rs or re-exports to maintain clean imports
+**Route Structure:** Use `/[models]/[id]` pattern for detail pages (e.g., `/projects/[id]/` for project details)
+**Code Duplication Prevention:**
+- NEVER create duplicate components in different directories
+- Consolidate shared components in a single location with clear imports
+- Use relative imports `./component` for collocated components
+- Remove unused/outdated files immediately after refactoring
+- Verify imports and run `pnpm build` after moving components
 
 ## Specialized Agents
 1. **p2p-app-builder** - P2P apps following ecosystem principles

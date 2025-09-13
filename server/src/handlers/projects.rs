@@ -5,11 +5,11 @@ use axum::{
     Json as JsonBody,
 };
 use serde::Deserialize;
-use uuid::Uuid;
 use std::env;
+use uuid::Uuid;
 
-use crate::models::ListQuery;
 use crate::ai::{AnthropicMessage, AnthropicMessageContent, AnthropicResponse, AppMetadata};
+use crate::models::ListQuery;
 use crate::AppState;
 
 #[derive(Deserialize)]
@@ -51,11 +51,10 @@ pub async fn create_project(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Generate metadata from the prompt first
     let metadata = generate_metadata_from_prompt(&app_state, &req.prompt, &req.model).await?;
-    
+
     let project_id = Uuid::new_v4().to_string();
-    let version_id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
-    
+
     // Create the project document with generated metadata
     let project_data = serde_json::json!({
         "id": project_id,
@@ -63,38 +62,25 @@ pub async fn create_project(
         "description": metadata.description,
         "icon": metadata.icon,
         "status": "draft",
-        "current_version": 1,
+        "current_version": 0,
+        "initial_prompt": req.prompt,
+        "initial_model": req.model,
         "created_at": now,
         "updated_at": now
     });
 
-    // Create the initial version
-    let version_data = serde_json::json!({
-        "id": version_id,
-        "project_id": project_id,
-        "version_number": 1,
-        "prompt": req.prompt,
-        "source_code": "",
-        "model": req.model,
-        "created_at": now
-    });
-
-    // Create both documents
-    match app_state.database.create_document("projects", project_data).await {
-        Ok(project_doc) => {
-            match app_state.database.create_document("project_versions", version_data).await {
-                Ok(_) => Ok(Json(serde_json::json!({
-                    "data": project_doc,
-                    "links": {
-                        "self": format!("/api/projects/{}", project_id)
-                    }
-                }))),
-                Err(e) => {
-                    tracing::error!("Failed to create project version: {}", e);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
-                }
+    // Create project document only
+    match app_state
+        .database
+        .create_document("projects", project_data)
+        .await
+    {
+        Ok(project_doc) => Ok(Json(serde_json::json!({
+            "data": project_doc,
+            "links": {
+                "self": format!("/api/projects/{}", project_id)
             }
-        },
+        }))),
         Err(e) => {
             tracing::error!("Failed to create project: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -103,9 +89,9 @@ pub async fn create_project(
 }
 
 async fn generate_metadata_from_prompt(
-    app_state: &AppState, 
-    prompt: &str, 
-    model: &Option<String>
+    app_state: &AppState,
+    prompt: &str,
+    model: &Option<String>,
 ) -> Result<AppMetadata, StatusCode> {
     let api_key = env::var("ANTHROPIC_API_KEY").map_err(|_| {
         tracing::error!("ANTHROPIC_API_KEY environment variable is required");
@@ -127,15 +113,13 @@ Respond with only valid JSON, no other text."#,
         prompt
     );
 
-    let messages = vec![
-        AnthropicMessage {
-            role: "user".to_string(),
-            content: vec![AnthropicMessageContent {
-                content_type: "text".to_string(),
-                text: metadata_prompt,
-            }],
-        },
-    ];
+    let messages = vec![AnthropicMessage {
+        role: "user".to_string(),
+        content: vec![AnthropicMessageContent {
+            content_type: "text".to_string(),
+            text: metadata_prompt,
+        }],
+    }];
 
     let model = model.as_deref().unwrap_or("claude-3-haiku-20240307");
 
@@ -225,7 +209,10 @@ pub async fn get_project(
     Path(project_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Find project by data.id field
-    let projects_result = app_state.database.list_documents("projects", Some(1000), Some(0)).await;
+    let projects_result = app_state
+        .database
+        .list_documents("projects", Some(1000), Some(0))
+        .await;
     let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
@@ -234,25 +221,28 @@ pub async fn get_project(
         }
     };
 
-    let project_doc = projects.documents
+    let project_doc = projects
+        .documents
         .into_iter()
-        .find(|doc| {
-            doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id)
-        });
+        .find(|doc| doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id));
 
     let project_doc = match project_doc {
         Some(doc) => doc,
-        None => return Err(StatusCode::NOT_FOUND)
+        None => return Err(StatusCode::NOT_FOUND),
     };
 
     // Get the current version to check if source_code needs generation
-    let current_version = project_doc.data
+    let current_version = project_doc
+        .data
         .get("current_version")
         .and_then(|v| v.as_i64())
-        .unwrap_or(1) as i32;
+        .unwrap_or(0) as i32;
 
     // Find the current version document
-    let versions_result = app_state.database.list_documents("project_versions", Some(1000), Some(0)).await;
+    let versions_result = app_state
+        .database
+        .list_documents("project_versions", Some(1000), Some(0))
+        .await;
     let versions = match versions_result {
         Ok(result) => result,
         Err(e) => {
@@ -262,32 +252,18 @@ pub async fn get_project(
     };
 
     // Get all versions for this project first
-    let all_versions: Vec<_> = versions.documents
+    let all_versions: Vec<_> = versions
+        .documents
         .into_iter()
-        .filter(|doc| {
-            doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id)
-        })
+        .filter(|doc| doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id))
         .collect();
 
-    let version_doc = all_versions
-        .iter()
-        .find(|doc| {
-            doc.data.get("version_number").and_then(|v| v.as_i64()) == Some(current_version as i64)
-        });
-
-    let version_doc = match version_doc {
-        Some(doc) => doc,
-        None => {
-            tracing::error!("Current version {} not found for project {}", current_version, project_id);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-
-    // For now, skip automatic code generation to avoid blocking the response
-    // TODO: Move code generation to a separate endpoint or background task
-    let source_code = version_doc.data.get("source_code").and_then(|v| v.as_str()).unwrap_or("");
-    if source_code.is_empty() {
-        tracing::info!("Source code is empty for project {} version {} - will need manual generation", project_id, current_version);
+    // Handle case where there are no versions (current_version = 0)
+    if current_version == 0 {
+        tracing::info!(
+            "Project {} has no versions yet - ready for initial code generation",
+            project_id
+        );
     }
 
     // Prepare enriched project data without version-specific fields
@@ -299,7 +275,10 @@ pub async fn get_project(
         data_obj.remove("model");
 
         // Add versions array
-        data_obj.insert("versions".to_string(), serde_json::to_value(&all_versions).unwrap_or_default());
+        data_obj.insert(
+            "versions".to_string(),
+            serde_json::to_value(&all_versions).unwrap_or_default(),
+        );
     }
 
     let enriched_project_doc = crate::models::Document {
@@ -325,7 +304,10 @@ pub async fn update_project(
     JsonBody(req): JsonBody<UpdateProjectRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Find the project by its data.id field
-    let projects_result = app_state.database.list_documents("projects", Some(1000), Some(0)).await;
+    let projects_result = app_state
+        .database
+        .list_documents("projects", Some(1000), Some(0))
+        .await;
     let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
@@ -334,11 +316,10 @@ pub async fn update_project(
         }
     };
 
-    let project_document = projects.documents
+    let project_document = projects
+        .documents
         .into_iter()
-        .find(|doc| {
-            doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id)
-        });
+        .find(|doc| doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id));
 
     let mut project_document = match project_document {
         Some(doc) => doc,
@@ -351,7 +332,10 @@ pub async fn update_project(
             data_obj.insert("name".to_string(), serde_json::Value::String(name));
         }
         if let Some(description) = req.description {
-            data_obj.insert("description".to_string(), serde_json::Value::String(description));
+            data_obj.insert(
+                "description".to_string(),
+                serde_json::Value::String(description),
+            );
         }
         if let Some(icon) = req.icon {
             data_obj.insert("icon".to_string(), serde_json::Value::String(icon));
@@ -359,10 +343,17 @@ pub async fn update_project(
         if let Some(status) = req.status {
             data_obj.insert("status".to_string(), serde_json::Value::String(status));
         }
-        data_obj.insert("updated_at".to_string(), serde_json::Value::String(chrono::Utc::now().to_rfc3339()));
+        data_obj.insert(
+            "updated_at".to_string(),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        );
     }
 
-    match app_state.database.update_document("projects", &project_document.id, project_document.data).await {
+    match app_state
+        .database
+        .update_document("projects", &project_document.id, project_document.data)
+        .await
+    {
         Ok(Some(updated_document)) => Ok(Json(serde_json::json!({
             "data": updated_document,
             "links": {
@@ -382,7 +373,10 @@ pub async fn delete_project(
     Path(project_id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
     // Find and delete the project
-    let projects_result = app_state.database.list_documents("projects", Some(1000), Some(0)).await;
+    let projects_result = app_state
+        .database
+        .list_documents("projects", Some(1000), Some(0))
+        .await;
     let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
@@ -391,33 +385,44 @@ pub async fn delete_project(
         }
     };
 
-    let project_document = projects.documents
+    let project_document = projects
+        .documents
         .into_iter()
-        .find(|doc| {
-            doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id)
-        });
+        .find(|doc| doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id));
 
     let project_document = match project_document {
         Some(doc) => doc,
         None => return Err(StatusCode::NOT_FOUND),
     };
 
-    match app_state.database.delete_document("projects", &project_document.id).await {
+    match app_state
+        .database
+        .delete_document("projects", &project_document.id)
+        .await
+    {
         Ok(true) => {
             // Also delete all versions for this project
             // Note: In a production system, you might want to do this in a transaction
-            let versions_result = app_state.database.list_documents("project_versions", Some(1000), Some(0)).await;
+            let versions_result = app_state
+                .database
+                .list_documents("project_versions", Some(1000), Some(0))
+                .await;
             if let Ok(versions) = versions_result {
                 for version_doc in versions.documents {
-                    if let Some(version_project_id) = version_doc.data.get("project_id").and_then(|v| v.as_str()) {
+                    if let Some(version_project_id) =
+                        version_doc.data.get("project_id").and_then(|v| v.as_str())
+                    {
                         if version_project_id == project_id {
-                            let _ = app_state.database.delete_document("project_versions", &version_doc.id).await;
+                            let _ = app_state
+                                .database
+                                .delete_document("project_versions", &version_doc.id)
+                                .await;
                         }
                     }
                 }
             }
             Ok(StatusCode::NO_CONTENT)
-        },
+        }
         Ok(false) => Err(StatusCode::NOT_FOUND),
         Err(e) => {
             tracing::error!("Failed to delete project: {}", e);
@@ -432,7 +437,10 @@ pub async fn create_version(
     JsonBody(req): JsonBody<CreateVersionRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Get current project to determine next version number
-    let projects_result = app_state.database.list_documents("projects", Some(1000), Some(0)).await;
+    let projects_result = app_state
+        .database
+        .list_documents("projects", Some(1000), Some(0))
+        .await;
     let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
@@ -441,18 +449,18 @@ pub async fn create_version(
         }
     };
 
-    let project_document = projects.documents
+    let project_document = projects
+        .documents
         .into_iter()
-        .find(|doc| {
-            doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id)
-        });
+        .find(|doc| doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id));
 
     let mut project_document = match project_document {
         Some(doc) => doc,
         None => return Err(StatusCode::NOT_FOUND),
     };
 
-    let current_version = project_document.data
+    let current_version = project_document
+        .data
         .get("current_version")
         .and_then(|v| v.as_i64())
         .unwrap_or(0) as i32;
@@ -472,15 +480,25 @@ pub async fn create_version(
         "created_at": now
     });
 
-    match app_state.database.create_document("project_versions", version_data).await {
+    match app_state
+        .database
+        .create_document("project_versions", version_data)
+        .await
+    {
         Ok(version_doc) => {
             // Update project's current_version
             if let Some(data_obj) = project_document.data.as_object_mut() {
-                data_obj.insert("current_version".to_string(), serde_json::Value::Number(next_version.into()));
+                data_obj.insert(
+                    "current_version".to_string(),
+                    serde_json::Value::Number(next_version.into()),
+                );
                 data_obj.insert("updated_at".to_string(), serde_json::Value::String(now));
             }
 
-            let _ = app_state.database.update_document("projects", &project_document.id, project_document.data).await;
+            let _ = app_state
+                .database
+                .update_document("projects", &project_document.id, project_document.data)
+                .await;
 
             Ok(Json(serde_json::json!({
                 "data": version_doc,
@@ -489,7 +507,7 @@ pub async fn create_version(
                     "project": format!("/api/projects/{}", project_id)
                 }
             })))
-        },
+        }
         Err(e) => {
             tracing::error!("Failed to create project version: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -501,7 +519,10 @@ pub async fn list_versions(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let versions_result = app_state.database.list_documents("project_versions", Some(1000), Some(0)).await;
+    let versions_result = app_state
+        .database
+        .list_documents("project_versions", Some(1000), Some(0))
+        .await;
     let versions = match versions_result {
         Ok(result) => result,
         Err(e) => {
@@ -510,11 +531,10 @@ pub async fn list_versions(
         }
     };
 
-    let project_versions: Vec<_> = versions.documents
+    let project_versions: Vec<_> = versions
+        .documents
         .into_iter()
-        .filter(|doc| {
-            doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id)
-        })
+        .filter(|doc| doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id))
         .collect();
 
     Ok(Json(serde_json::json!({
@@ -536,7 +556,10 @@ pub async fn release_version(
     JsonBody(req): JsonBody<ReleaseVersionRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Get project
-    let projects_result = app_state.database.list_documents("projects", Some(1000), Some(0)).await;
+    let projects_result = app_state
+        .database
+        .list_documents("projects", Some(1000), Some(0))
+        .await;
     let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
@@ -545,11 +568,10 @@ pub async fn release_version(
         }
     };
 
-    let project_doc = projects.documents
+    let project_doc = projects
+        .documents
         .into_iter()
-        .find(|doc| {
-            doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id)
-        });
+        .find(|doc| doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id));
 
     let project_doc = match project_doc {
         Some(doc) => doc,
@@ -557,7 +579,10 @@ pub async fn release_version(
     };
 
     // Get the specific version
-    let versions_result = app_state.database.list_documents("project_versions", Some(1000), Some(0)).await;
+    let versions_result = app_state
+        .database
+        .list_documents("project_versions", Some(1000), Some(0))
+        .await;
     let versions = match versions_result {
         Ok(result) => result,
         Err(e) => {
@@ -566,12 +591,11 @@ pub async fn release_version(
         }
     };
 
-    let version_doc = versions.documents
-        .into_iter()
-        .find(|doc| {
-            doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id) &&
-            doc.data.get("version_number").and_then(|v| v.as_i64()) == Some(req.version_number as i64)
-        });
+    let version_doc = versions.documents.into_iter().find(|doc| {
+        doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id)
+            && doc.data.get("version_number").and_then(|v| v.as_i64())
+                == Some(req.version_number as i64)
+    });
 
     let version_doc = match version_doc {
         Some(doc) => doc,
@@ -586,7 +610,7 @@ pub async fn release_version(
         "id": app_id,
         "name": project_doc.data.get("name").unwrap_or(&serde_json::Value::String("Untitled App".to_string())),
         "description": project_doc.data.get("description").unwrap_or(&serde_json::Value::String("".to_string())),
-        "version": format!("v{}", req.version_number),
+        "version": req.version_number,
         "price": req.price.unwrap_or(0.0),
         "icon": project_doc.data.get("icon").unwrap_or(&serde_json::Value::String("📱".to_string())),
         "installed": 1,
@@ -620,7 +644,10 @@ pub async fn convert_to_app(
     JsonBody(req): JsonBody<ConvertToAppRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Get project
-    let projects_result = app_state.database.list_documents("projects", Some(1000), Some(0)).await;
+    let projects_result = app_state
+        .database
+        .list_documents("projects", Some(1000), Some(0))
+        .await;
     let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
@@ -629,11 +656,10 @@ pub async fn convert_to_app(
         }
     };
 
-    let project_doc = projects.documents
+    let project_doc = projects
+        .documents
         .into_iter()
-        .find(|doc| {
-            doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id)
-        });
+        .find(|doc| doc.data.get("id").and_then(|v| v.as_str()) == Some(&project_id));
 
     let project_doc = match project_doc {
         Some(doc) => doc,
@@ -641,7 +667,10 @@ pub async fn convert_to_app(
     };
 
     // Get the specific version
-    let versions_result = app_state.database.list_documents("project_versions", Some(1000), Some(0)).await;
+    let versions_result = app_state
+        .database
+        .list_documents("project_versions", Some(1000), Some(0))
+        .await;
     let versions = match versions_result {
         Ok(result) => result,
         Err(e) => {
@@ -650,12 +679,10 @@ pub async fn convert_to_app(
         }
     };
 
-    let version_doc = versions.documents
-        .into_iter()
-        .find(|doc| {
-            doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id) &&
-            doc.data.get("version_number").and_then(|v| v.as_i64()) == Some(req.version as i64)
-        });
+    let version_doc = versions.documents.into_iter().find(|doc| {
+        doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id)
+            && doc.data.get("version_number").and_then(|v| v.as_i64()) == Some(req.version as i64)
+    });
 
     let version_doc = match version_doc {
         Some(doc) => doc,
@@ -670,7 +697,7 @@ pub async fn convert_to_app(
         "id": app_id,
         "name": project_doc.data.get("name").unwrap_or(&serde_json::Value::String("Untitled App".to_string())),
         "description": project_doc.data.get("description").unwrap_or(&serde_json::Value::String("".to_string())),
-        "version": format!("v{}", req.version),
+        "version": req.version,
         "price": req.price.unwrap_or(0.0),
         "icon": project_doc.data.get("icon").unwrap_or(&serde_json::Value::String("📱".to_string())),
         "installed": 1,

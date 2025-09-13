@@ -233,7 +233,7 @@ RESTful endpoints for P2P apps to store and retrieve data:
 ```bash
 curl -X POST http://127.0.0.1:10000/generate/stream \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Create a responsive todo list with local storage"}'
+  -d '{"prompt": "Create a responsive todo list"}'
 ```
 
 ### Generate a Calculator

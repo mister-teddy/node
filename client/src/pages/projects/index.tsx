@@ -1,5 +1,5 @@
 import { type FC } from "react";
-import { ProjectList } from "@/components/create-app/project-list";
+import { ProjectList } from "@/components/project-list";
 
 const ProjectsPage: FC = () => {
   return <ProjectList />;

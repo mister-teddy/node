@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { projectByIdAtom } from "@/state/app-ecosystem";
 import toast from "react-hot-toast";
 
-export function CodeModifier() {
+export function NextPrompt() {
   const { id } = useParams<{ id: string }>();
   const project = useAtomValue(projectByIdAtom(id || ""));
   const [modificationPrompt, setModificationPrompt] = useState("");
@@ -51,10 +51,10 @@ export function CodeModifier() {
   };
 
   return (
-    <Card className="mb-4">
+    <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          ✏️ Modify Code
+          <span>Improve it further</span>
           <span className="text-sm text-gray-500 font-normal">
             (Version {project.currentVersion})
           </span>
@@ -62,8 +62,8 @@ export function CodeModifier() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label 
-            htmlFor="modification-prompt" 
+          <label
+            htmlFor="modification-prompt"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
             Describe what you want to change:
@@ -78,36 +78,28 @@ export function CodeModifier() {
             disabled={isModifying}
           />
         </div>
-        
+
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            Press <kbd className="px-2 py-1 text-xs bg-gray-100 rounded">⌘ + Enter</kbd> to modify
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setModificationPrompt("")}
-              disabled={isModifying || !modificationPrompt.trim()}
-            >
-              Clear
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isModifying || !modificationPrompt.trim()}
-              className="min-w-[120px]"
-            >
-              {isModifying ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Modifying...
-                </>
-              ) : (
-                <>
-                  🚀 Modify Code
-                </>
-              )}
-            </Button>
-          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={isModifying || !modificationPrompt.trim()}
+            className="space-x-2 w-full"
+            variant="outline"
+          >
+            {isModifying ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                Improving...
+              </>
+            ) : (
+              <>
+                <span>🪄 Improve </span>
+                <kbd className="px-2 py-1 text-xs bg-gray-100 rounded whitespace-nowrap">
+                  ⌘ + Enter
+                </kbd>
+              </>
+            )}
+          </Button>
         </div>
 
         {project.versions.length > 0 && (
@@ -125,11 +117,12 @@ export function CodeModifier() {
                     className="block w-full text-left text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-2 rounded transition-colors"
                     disabled={isModifying}
                   >
-                    <span className="font-medium">v{version.versionNumber}:</span>{" "}
+                    <span className="font-medium">
+                      v{version.versionNumber}:
+                    </span>{" "}
                     {version.prompt.length > 80
                       ? version.prompt.slice(0, 80) + "..."
-                      : version.prompt
-                    }
+                      : version.prompt}
                   </button>
                 ))}
             </div>

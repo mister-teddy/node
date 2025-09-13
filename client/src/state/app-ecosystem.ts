@@ -45,8 +45,10 @@ interface ProjectData {
   name: string;
   description: string;
   icon: string;
-  status: 'draft' | 'published';
+  status: "draft" | "published";
   current_version: number;
+  initial_prompt?: string;
+  initial_model?: string;
   versions: ServerVersion[];
   created_at: string;
   updated_at: string;
@@ -63,7 +65,9 @@ interface ServerProject {
 type ProjectsResponse = ServerResponse<ServerProject[]>;
 
 // Helper function to convert ServerVersion to AppProjectVersion
-function mapServerVersionToAppVersion(serverVersion: ServerVersion): AppProjectVersion {
+function mapServerVersionToAppVersion(
+  serverVersion: ServerVersion,
+): AppProjectVersion {
   const { data } = serverVersion;
 
   const parseDate = (dateString: string): Date => {
@@ -83,7 +87,9 @@ function mapServerVersionToAppVersion(serverVersion: ServerVersion): AppProjectV
 }
 
 // Mapping function to convert ServerProject to AppProject
-function mapServerProjectToAppProject(serverProject: ServerProject): AppProject {
+function mapServerProjectToAppProject(
+  serverProject: ServerProject,
+): AppProject {
   const { data } = serverProject;
 
   // Safe date parsing with fallback
@@ -97,7 +103,9 @@ function mapServerProjectToAppProject(serverProject: ServerProject): AppProject 
   const versions = (data.versions || []).map(mapServerVersionToAppVersion);
 
   // Get current version data
-  const currentVersionData = versions.find(v => v.versionNumber === data.current_version);
+  const currentVersionData = versions.find(
+    (v) => v.versionNumber === data.current_version,
+  );
 
   return {
     id: data.id,
@@ -110,8 +118,8 @@ function mapServerProjectToAppProject(serverProject: ServerProject): AppProject 
     createdAt: parseDate(data.created_at),
     updatedAt: parseDate(data.updated_at),
     status: data.status,
-    model: currentVersionData?.model,
-    originalPrompt: currentVersionData?.prompt || "",
+    model: currentVersionData?.model || data.initial_model,
+    originalPrompt: currentVersionData?.prompt || data.initial_prompt || "",
     currentVersion: data.current_version,
     versions: versions,
   };
@@ -201,10 +209,13 @@ export const projectsAtom = atomWithRefresh(async (): Promise<AppProject[]> => {
   }
 });
 
-export const projectByIdAtom = atomFamily((projectId: string) =>
+export const projectByIdAtom = atomFamily((projectId?: string) =>
   atom(async (): Promise<AppProject | null> => {
+    if (!projectId) return null;
     try {
-      const response = await fetch(`${CONFIG.API.BASE_URL}/api/projects/${projectId}`);
+      const response = await fetch(
+        `${CONFIG.API.BASE_URL}/api/projects/${projectId}`,
+      );
       if (!response.ok) {
         if (response.status === 404) {
           return null;
@@ -218,6 +229,122 @@ export const projectByIdAtom = atomFamily((projectId: string) =>
       return null;
     }
   }),
+);
+
+// Project versions atoms - for version control functionality
+export interface ProjectVersionData {
+  id: string;
+  project_id: string;
+  version_number: number;
+  prompt: string;
+  source_code: string;
+  model?: string;
+  created_at: string;
+}
+
+export const projectVersionsAtom = atomFamily((projectId: string) =>
+  atomWithRefresh(async (): Promise<ProjectVersionData[]> => {
+    try {
+      const response = await fetch(
+        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/versions`,
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch versions: ${response.status}`);
+      }
+      const result: { data: ProjectVersionData[] } = await response.json();
+      return (result.data || []).sort(
+        (a, b) => b.version_number - a.version_number,
+      );
+    } catch (error) {
+      console.error(`Failed to load versions for project ${projectId}:`, error);
+      return [];
+    }
+  }),
+);
+
+// Create version mutation atom
+export const createVersionAtom = atom(
+  null,
+  async (
+    _get,
+    set,
+    {
+      projectId,
+      versionData,
+    }: {
+      projectId: string;
+      versionData: { prompt: string; source_code: string; model?: string };
+    },
+  ) => {
+    try {
+      const response = await fetch(
+        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/versions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(versionData),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to create version: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // Refresh the versions atom for this project
+      const versionsAtom = projectVersionsAtom(projectId);
+      set(versionsAtom);
+
+      return result.data;
+    } catch (error) {
+      console.error("Failed to create version:", error);
+      throw error;
+    }
+  },
+);
+
+// Convert to app mutation atom
+export const convertToAppAtom = atom(
+  null,
+  async (
+    _get,
+    _set,
+    {
+      projectId,
+      version,
+      price = 0,
+    }: {
+      projectId: string;
+      version: number;
+      price?: number;
+    },
+  ) => {
+    try {
+      const response = await fetch(
+        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/convert`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ version, price }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to convert to app: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error("Failed to convert to app:", error);
+      throw error;
+    }
+  },
 );
 
 // Export types for use in components
