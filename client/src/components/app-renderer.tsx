@@ -1,6 +1,5 @@
 import type { AppTable } from "@/types";
 import React, {
-  createElement,
   memo,
   useMemo,
   useState,
@@ -11,12 +10,19 @@ import { createPortal } from "react-dom";
 import CloseIcon from "./icons/close";
 import FullscreenIcon from "./icons/fullscreen";
 import { adaptiveIs3DModeAtom } from "@/state/3d";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { hostAPI } from "@/libs/host-api";
+import { promptState } from "@/state/app-ecosystem";
+import { Button } from "./ui/button";
+
+// Import all UI components from components/ui/*
+import * as ui from "./ui";
+import toast from "react-hot-toast";
+import { useCustomCrumb } from "@/hooks";
 
 interface AppRendererProps {
   app: AppTable;
-  component?: ComponentType<{ app: AppTable }>;
+  component?: ComponentType<{ app: AppTable; ui: typeof ui }>;
 }
 
 const AppRenderer: FunctionComponent<AppRendererProps> = ({
@@ -25,94 +31,23 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
 }) => {
   const is3D = useAtomValue(adaptiveIs3DModeAtom);
   const [fullscreen, setFullscreen] = useState(false);
+  useCustomCrumb(app.name);
 
-  // Execute JavaScript code if provided, otherwise use component prop
+  // Compose context to pass to AppComponent
+  const context = { app, React, ui, toast, hostAPI };
+
   const DynamicComponent = useMemo(() => {
     if (app.source_code) {
-      try {
-        // Create a safe execution context
-        const createAppComponent = new Function(
-          "React",
-          "app",
-          "hostAPI",
-          app.source_code,
-        );
-
-        // Execute the code and get the component
-        const AppComponent = createAppComponent(React, app, hostAPI);
-
-        // Return a wrapper component that passes the right props
-        return () => AppComponent({ React, app, hostAPI });
-      } catch (error) {
-        console.error("Failed to execute app source code:", error);
-        return () =>
-          React.createElement(
-            "div",
-            {
-              className: "flex items-center justify-center min-h-screen p-8",
-            },
-            React.createElement(
-              "div",
-              {
-                className: "text-center",
-              },
-              React.createElement("div", { className: "text-6xl mb-4" }, "⚠️"),
-              React.createElement(
-                "h2",
-                {
-                  className: "text-xl font-bold text-red-600 mb-2",
-                },
-                "App Execution Error",
-              ),
-              React.createElement(
-                "p",
-                {
-                  className: "text-gray-600",
-                },
-                `Failed to execute ${app.name}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
-              ),
-            ),
-          );
-      }
+      // Convert source code string to a React component factory, then call it to get the component
+      const factory = new Function(app.source_code) as () => FunctionComponent<
+        typeof context
+      >;
+      return factory();
     }
-
-    // Fallback to component prop if no source code
-    return component ? () => createElement(component, { app }) : null;
+    return component!;
   }, [app, component]);
 
-  if (!DynamicComponent) {
-    return React.createElement(
-      "div",
-      {
-        className: "flex items-center justify-center min-h-screen p-8",
-      },
-      React.createElement(
-        "div",
-        {
-          className: "text-center",
-        },
-        React.createElement("div", { className: "text-6xl mb-4" }, "📱"),
-        React.createElement(
-          "h2",
-          {
-            className: "text-xl font-bold text-gray-800 mb-2",
-          },
-          "App Not Available",
-        ),
-        React.createElement(
-          "p",
-          {
-            className: "text-gray-600",
-          },
-          `${app.name} could not be loaded`,
-        ),
-      ),
-    );
-  }
-
-  const content = React.createElement(DynamicComponent);
+  const content = <DynamicComponent {...context} />;
 
   // Always show buttons, but handle different layouts for fullscreen vs normal mode
   if (is3D) {
@@ -123,7 +58,9 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
   // Shared fullscreen toggle overlay
   const fullscreenToggle = (
     <div className="absolute top-4 right-4 flex gap-2">
-      <button
+      <Button
+        variant="secondary"
+        size="icon"
         onClick={() => {
           if (document.startViewTransition) {
             document.startViewTransition(() => setFullscreen((f) => !f));
@@ -131,11 +68,10 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
             setFullscreen((f) => !f);
           }
         }}
-        className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
         title={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
       >
         {fullscreen ? <CloseIcon /> : <FullscreenIcon />}
-      </button>
+      </Button>
     </div>
   );
 
@@ -158,6 +94,65 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
   return <div className="relative h-full">{overlay}</div>;
 };
 
-export default memo(AppRenderer, (prev, next) => {
+const MemoizedAppRenderer = memo(AppRenderer, (prev, next) => {
   return prev.app.id === next.app.id;
 });
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; setPrompt: (prompt: string) => void },
+  { hasError: boolean; errorMessage: string | null }
+> {
+  constructor(props: {
+    children: React.ReactNode;
+    setPrompt: (prompt: string) => void;
+  }) {
+    super(props);
+    this.state = { hasError: false, errorMessage: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMessage: error.message };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center min-h-screen p-8">
+          <div className="text-center max-w-md mx-auto">
+            <div className="text-6xl mb-4">🚧</div>
+            <h2 className="text-xl font-bold text-red-600 mb-2">
+              {`App Execution Error`}
+            </h2>
+            <p className="text-gray-600 mb-4">{this.state.errorMessage}</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                this.props.setPrompt(`Fix ${this.state.errorMessage}`);
+              }}
+            >
+              Fix this error
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const AppRendererWithBoundary: FunctionComponent<AppRendererProps> = (
+  props,
+) => {
+  const setPrompt = useSetAtom(promptState);
+  return (
+    <ErrorBoundary setPrompt={setPrompt}>
+      <MemoizedAppRenderer {...props} />
+    </ErrorBoundary>
+  );
+};
+
+export default AppRendererWithBoundary;

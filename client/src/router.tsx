@@ -1,8 +1,15 @@
-import { createBrowserRouter } from "react-router-dom";
-import { RootLayout } from "./pages/_layout";
+import { createBrowserRouter, Link } from "react-router-dom";
+import RootLayout from "./pages/_layout";
 import AppPage from "./pages/app";
-import { PAGES } from "./pages";
 import NotFound from "./pages/404";
+import DashboardPage from "./pages/dashboard";
+import ProjectsPage from "./pages/projects";
+import ProjectDetailPage from "./pages/projects/[id]";
+import CreateNewProjectPage from "./pages/projects/create";
+import StorePage from "./pages/store";
+import { Button } from "./components/ui";
+import { Wand } from "lucide-react";
+import { atom } from "jotai";
 
 export const router = createBrowserRouter([
   {
@@ -12,36 +19,64 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        Component: PAGES["/"],
+        Component: DashboardPage,
+        handle: {
+          crumb: "Dashboard",
+        },
       },
       {
         path: "/store",
-        Component: PAGES["/store"],
+        Component: StorePage,
+        handle: {
+          crumb: "Store",
+        },
       },
       {
         path: "/projects",
-        Component: PAGES["/projects"],
-      },
-      {
-        path: "/projects/create",
-        Component: PAGES["/projects/create"],
+        handle: {
+          crumb: "Projects",
+        },
+        children: [
+          {
+            path: "",
+            Component: ProjectsPage,
+            handle: {
+              actions: [
+                <Button asChild variant="outline">
+                  <Link to="/projects/create">
+                    <Wand /> New Project
+                  </Link>
+                </Button>,
+              ],
+            },
+          },
+          {
+            path: "create",
+            Component: CreateNewProjectPage,
+            handle: {
+              crumb: "New Project",
+            },
+          },
+          {
+            path: ":id/editor",
+            Component: ProjectDetailPage,
+          },
+          {
+            path: ":id/versions",
+            Component: ProjectDetailPage,
+          },
+          {
+            path: ":id/settings",
+            Component: ProjectDetailPage,
+          },
+        ],
       },
       {
         path: "apps/:id",
         Component: AppPage,
       },
-      {
-        path: "projects/:id/editor",
-        Component: PAGES["/projects/:id/editor"],
-      },
-      {
-        path: "projects/:id/versions",
-        Component: PAGES["/projects/:id/editor"],
-      },
-      {
-        path: "projects/:id/settings",
-        Component: PAGES["/projects/:id/editor"],
-      },
     ],
   },
 ]);
+
+export const customCrumbState = atom("");

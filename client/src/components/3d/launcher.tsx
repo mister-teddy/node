@@ -2,7 +2,7 @@ import CONFIG from "@/config";
 import Profile from "../profile";
 import Window3D from "./window";
 import { useOpenWindow } from "@/hooks";
-import { PAGES } from "@/pages";
+import { router } from "@/router";
 
 function LauncherItem(props: {
   item: (typeof CONFIG.SIDEBAR_ITEMS)[number];
@@ -16,7 +16,9 @@ function LauncherItem(props: {
         openWindow({
           title: props.item.title,
           icon: props.item.icon,
-          component: PAGES[props.item.path],
+          component: () =>
+            router.routes.find((r) => r.path === props.item.path)
+              ?.children as unknown as React.ReactElement,
           size: props.preferedSize,
         })
       }

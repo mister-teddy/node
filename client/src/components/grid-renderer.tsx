@@ -1,8 +1,10 @@
+import clsx from "clsx";
 import { useMemo } from "react";
 
 interface GridRendererProps<T> {
   items: T[];
   render: (item: T) => React.ReactNode;
+  onClick?: (item: T, e: React.MouseEvent) => void;
   keyExtractor: (item: T) => string | number;
   className?: string;
 }
@@ -10,6 +12,7 @@ interface GridRendererProps<T> {
 export default function GridRenderer<T>({
   items,
   render,
+  onClick,
   keyExtractor,
   className = "flex-1 px-8 pb-8 min-w-0 box-border overflow-y-auto h-full",
 }: GridRendererProps<T>) {
@@ -29,12 +32,16 @@ export default function GridRenderer<T>({
         {itemChunks.map((chunk, i) => (
           <div
             key={i}
-            className="flex flex-col border-b border-gray-200 xl:border-none last:border-none"
+            className="flex flex-col border-b border-border xl:border-none last:border-none"
           >
             {chunk.map((item) => (
               <div
                 key={keyExtractor(item)}
-                className="border-b border-gray-200 last:border-none"
+                className={clsx(
+                  "border-b border-border last:border-none",
+                  onClick && "cursor-pointer",
+                )}
+                onClick={(e) => onClick?.(item, e)}
               >
                 {render(item)}
               </div>

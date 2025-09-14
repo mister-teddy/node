@@ -1,6 +1,6 @@
 import { type FC } from "react";
-import { StarRating } from "@/components/ui/star-rating";
 import type { ModelInfo } from "@/libs/models";
+import { StarRating } from "./star-rating";
 
 interface ModelSelectorProps {
   models: ModelInfo[];
@@ -17,13 +17,13 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 }) => {
   if (models.length === 0) {
     return (
-      <div className="text-center py-4 text-gray-500">Loading models...</div>
+      <div className="text-center py-4 text-muted-foreground">Loading models...</div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-gray-700 mb-3">
+      <div className="text-sm font-medium text-foreground mb-3">
         Choose AI Model
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -40,8 +40,8 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
                 relative p-4 border-2 rounded-xl overflow-hidden text-left transition-all
                 ${
                   isSelected
-                    ? "border-blue-500 bg-blue-50 shadow-sm"
-                    : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border bg-card hover:border-border/80 hover:shadow-sm"
                 }
                 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
               `}
@@ -52,11 +52,11 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
                   <div className="min-w-0 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="mb-1">
-                        <h3 className="font-medium text-gray-900 text-sm">
+                        <h3 className="font-medium text-card-foreground text-sm">
                           {model.name}
                         </h3>
                       </div>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-1">
+                      <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
                         {model.description}
                       </p>
                     </div>
@@ -64,15 +64,15 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
                     {/* Rating bars */}
                     <div className="space-y-1 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Power</span>
+                        <span className="text-muted-foreground">Power</span>
                         <StarRating rating={model.power} size="sm" />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Cost</span>
+                        <span className="text-muted-foreground">Cost</span>
                         <StarRating rating={model.cost} size="sm" />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Speed</span>
+                        <span className="text-muted-foreground">Speed</span>
                         <StarRating rating={model.speed} size="sm" />
                       </div>
                     </div>

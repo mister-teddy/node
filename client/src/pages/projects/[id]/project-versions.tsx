@@ -2,14 +2,15 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { formatDistanceToNow } from "date-fns";
 import { projectByIdAtom } from "@/state/app-ecosystem";
 import CONFIG from "@/config";
 import toast from "react-hot-toast";
+import { History, Clock, Code, Trash2, RotateCcw, Rocket, DollarSign } from "lucide-react";
 
 export function ProjectVersions() {
   const { id } = useParams<{ id: string }>();
@@ -78,26 +79,37 @@ export function ProjectVersions() {
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          🕒 Version History
-          <Badge variant="secondary">{project.versions.length} versions</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[400px]">
-          <div className="space-y-2 p-4">
-            {sortedVersions.map((version) => (
-              <div
-                key={version.id}
-                className={`border rounded-lg p-3 transition-colors ${
-                  version.versionNumber === project.currentVersion
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:bg-gray-50"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-muted/50 rounded-lg">
+            <History className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Version History</h2>
+            <p className="text-sm text-muted-foreground">
+              {project.versions.length} {project.versions.length === 1 ? 'version' : 'versions'} created
+            </p>
+          </div>
+        </div>
+        <Badge variant="secondary" className="text-xs">
+          Current: v{project.currentVersion}
+        </Badge>
+      </div>
+
+      <div className="space-y-3">
+        {sortedVersions.map((version) => (
+          <Card
+            key={version.id}
+            className={`transition-all duration-200 hover:shadow-md ${
+              version.versionNumber === project.currentVersion
+                ? "ring-2 ring-primary/20 bg-primary/5"
+                : "hover:bg-muted/30"
+            }`}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Badge
                       variant={
@@ -105,127 +117,153 @@ export function ProjectVersions() {
                           ? "default"
                           : "outline"
                       }
-                      className="text-xs"
+                      className="font-mono"
                     >
                       v{version.versionNumber}
                     </Badge>
                     {version.versionNumber === project.currentVersion && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Clock className="h-3 w-3" />
                         Current
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    {version.versionNumber !== project.currentVersion && (
+                </div>
+                <div className="flex items-center gap-2">
+                  {version.versionNumber !== project.currentVersion && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSwitchVersion(version.versionNumber)}
+                      className="gap-1"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Switch
+                    </Button>
+                  )}
+                  {project.versions.length > 1 &&
+                    version.versionNumber !== project.currentVersion && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSwitchVersion(version.versionNumber)}
-                        className="text-xs h-6 px-2"
+                        onClick={() =>
+                          handleDeleteVersion(version.versionNumber)
+                        }
+                        className="gap-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                       >
-                        Switch
+                        <Trash2 className="h-3 w-3" />
+                        Delete
                       </Button>
                     )}
-                    {project.versions.length > 1 &&
-                      version.versionNumber !== project.currentVersion && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleDeleteVersion(version.versionNumber)
-                          }
-                          className="text-xs h-6 px-2 text-red-600 hover:text-red-700"
-                        >
-                          Delete
-                        </Button>
-                      )}
-                  </div>
                 </div>
+              </div>
 
-                <div className="text-sm text-gray-600 mb-2">
-                  {formatDistanceToNow(version.createdAt, { addSuffix: true })}
-                  {version.model && (
-                    <span className="ml-2 text-xs text-gray-400">
-                      • {version.model}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                <Clock className="h-4 w-4" />
+                <span>{formatDistanceToNow(version.createdAt, { addSuffix: true })}</span>
+                {version.model && (
+                  <>
+                    <Separator orientation="vertical" className="h-4" />
+                    <span className="text-xs bg-muted px-2 py-1 rounded">
+                      {version.model}
                     </span>
-                  )}
-                </div>
+                  </>
+                )}
+              </div>
 
-                <div className="mb-2">
-                  <button
-                    onClick={() =>
-                      setExpandedVersion(
-                        expandedVersion === version.versionNumber
-                          ? null
-                          : version.versionNumber,
-                      )
-                    }
-                    className="text-sm text-gray-700 hover:text-gray-900 transition-colors text-left"
-                  >
-                    <span className="font-medium">Prompt:</span>{" "}
-                    {version.prompt.length > 100 &&
+              <div className="mb-3">
+                <button
+                  onClick={() =>
+                    setExpandedVersion(
+                      expandedVersion === version.versionNumber
+                        ? null
+                        : version.versionNumber,
+                    )
+                  }
+                  className="text-sm text-left w-full p-2.5 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <span className="font-medium text-foreground">Prompt:</span>
+                  <p className="mt-1 text-muted-foreground leading-relaxed">
+                    {version.prompt.length > 150 &&
                     expandedVersion !== version.versionNumber
-                      ? version.prompt.slice(0, 100) + "..."
+                      ? version.prompt.slice(0, 150) + "..."
                       : version.prompt}
-                  </button>
-                </div>
+                  </p>
+                </button>
+              </div>
 
-                {expandedVersion === version.versionNumber && (
-                  <div className="mt-2 pt-2 border-t border-gray-200 space-y-3">
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">
-                        Code Preview:
-                      </div>
-                      <div className="bg-gray-100 rounded p-2 text-xs font-mono max-h-32 overflow-auto">
-                        {version.sourceCode ? (
-                          version.sourceCode.slice(0, 500) +
-                          (version.sourceCode.length > 500 ? "..." : "")
-                        ) : (
-                          <span className="text-gray-400">No code generated</span>
-                        )}
-                      </div>
+              {expandedVersion === version.versionNumber && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-3">
+                      <Code className="h-4 w-4" />
+                      Code Preview
                     </div>
+                    <div className="bg-muted/80 rounded-lg p-4 text-xs font-mono max-h-40 overflow-auto border">
+                      {version.sourceCode ? (
+                        <pre className="whitespace-pre-wrap">
+                          {version.sourceCode.slice(0, 800) +
+                          (version.sourceCode.length > 800 ? "\n\n..." : "")}
+                        </pre>
+                      ) : (
+                        <span className="text-muted-foreground italic">No code generated</span>
+                      )}
+                    </div>
+                  </div>
 
-                    {/* Release Version Section */}
-                    <div className="bg-green-50 border border-green-200 rounded p-3">
-                      <div className="text-xs font-medium text-green-800 mb-2">
+                  {/* Release Version Section */}
+                  <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-green-800 mb-3">
+                        <Rocket className="h-4 w-4" />
                         Release as App
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          placeholder="Price (USD)"
-                          value={releasePrice[version.versionNumber] || ''}
-                          onChange={(e) => setReleasePrice(prev => ({
-                            ...prev,
-                            [version.versionNumber]: e.target.value
-                          }))}
-                          className="text-xs h-6 w-20"
-                          min="0"
-                          step="0.01"
-                        />
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <DollarSign className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                          <Input
+                            type="number"
+                            placeholder="0.00"
+                            value={releasePrice[version.versionNumber] || ''}
+                            onChange={(e) => setReleasePrice(prev => ({
+                              ...prev,
+                              [version.versionNumber]: e.target.value
+                            }))}
+                            className="pl-6 h-8 w-24 text-xs"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
                         <Button
                           size="sm"
                           onClick={() => handleReleaseVersion(version.versionNumber)}
                           disabled={isReleasing === version.versionNumber || !version.sourceCode}
-                          className="text-xs h-6 bg-green-600 hover:bg-green-700"
+                          className="gap-1 bg-green-600 hover:bg-green-700"
                         >
-                          {isReleasing === version.versionNumber ? 'Releasing...' : 'Release'}
+                          {isReleasing === version.versionNumber ? (
+                            <>Loading...</>
+                          ) : (
+                            <>
+                              <Rocket className="h-3 w-3" />
+                              Release
+                            </>
+                          )}
                         </Button>
                       </div>
                       {!version.sourceCode && (
-                        <div className="text-xs text-red-600 mt-1">
+                        <div className="text-xs text-destructive mt-2 flex items-center gap-1">
+                          <Code className="h-3 w-3" />
                           No source code available - cannot release
                         </div>
                       )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }

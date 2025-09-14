@@ -68,3 +68,57 @@ export interface Active3DWindow {
   size?: [number, number];
   biFoldContent?: React.ReactNode;
 }
+
+// Server API types
+export interface ServerResponse<T> {
+  data: T;
+  meta?: {
+    count: number;
+    limit: number;
+    offset: number;
+  };
+  links: {
+    self: string;
+    collections?: string;
+  };
+}
+
+export interface VersionData {
+  id: string;
+  project_id: string;
+  version_number: number;
+  prompt: string;
+  source_code: string;
+  model?: string;
+  created_at: string;
+}
+
+export interface ServerVersion {
+  id: string;
+  collection: string;
+  data: VersionData;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectData {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  status: "draft" | "published";
+  current_version: number;
+  initial_prompt?: string;
+  initial_model?: string;
+  versions: ServerVersion[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServerProject {
+  id: string;
+  collection: string;
+  data: ProjectData;
+  created_at: string;
+  updated_at: string;
+}

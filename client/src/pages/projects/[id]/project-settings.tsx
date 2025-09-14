@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { projectByIdAtom } from "@/state/app-ecosystem";
 import CONFIG from "@/config";
 import toast from "react-hot-toast";
+import { Settings, FileText, Tag, Globe, Bot, Palette, Save } from "lucide-react";
 
 export function ProjectSettings() {
   const { id } = useParams<{ id: string }>();
@@ -17,7 +19,7 @@ export function ProjectSettings() {
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center text-gray-500">
+        <div className="text-center text-muted-foreground">
           <p>Loading project...</p>
         </div>
       </div>
@@ -60,136 +62,191 @@ export function ProjectSettings() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-2xl">{project.icon}</span>
-          App Details
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="app-name"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              App Name
-            </label>
-            <Input
-              id="app-name"
-              defaultValue={project.name}
-              onBlur={(e) => {
-                if (e.target.value !== project.name) {
-                  handleInputChange("name", e.target.value);
-                }
-              }}
-              placeholder="Enter app name"
-              disabled={isUpdating}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="app-icon"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Icon (Emoji)
-            </label>
-            <Input
-              id="app-icon"
-              defaultValue={project.icon}
-              onBlur={(e) => {
-                if (e.target.value !== project.icon) {
-                  handleInputChange("icon", e.target.value);
-                }
-              }}
-              placeholder="📱"
-              className="text-center text-2xl"
-              maxLength={2}
-              disabled={isUpdating}
-            />
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="p-1.5 bg-muted/50 rounded-lg">
+          <Settings className="h-5 w-5" />
         </div>
-
         <div>
-          <label
-            htmlFor="app-description"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Description
-          </label>
-          <Textarea
-            id="app-description"
-            defaultValue={project.description}
-            onBlur={(e) => {
-              if (e.target.value !== project.description) {
-                handleInputChange("description", e.target.value);
-              }
-            }}
-            placeholder="Describe what your app does"
-            rows={3}
-            disabled={isUpdating}
-          />
+          <h2 className="text-lg font-semibold tracking-tight">App Settings</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure your app's metadata and publishing options
+          </p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Current Version
-            </label>
-            <div className="p-2 bg-gray-50 rounded-md text-sm text-gray-600">
-              v{project.currentVersion} ({project.versions.length} total versions)
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <div className="flex gap-2">
-              <Button
-                variant={project.status === "draft" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleInputChange("status", "draft")}
-                disabled={isUpdating}
+      {/* Basic Information */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Basic Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label
+                htmlFor="app-name"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Draft
-              </Button>
-              <Button
-                variant={project.status === "published" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePublish()}
+                App Name
+              </label>
+              <Input
+                id="app-name"
+                defaultValue={project.name}
+                onBlur={(e) => {
+                  if (e.target.value !== project.name) {
+                    handleInputChange("name", e.target.value);
+                  }
+                }}
+                placeholder="Enter app name"
                 disabled={isUpdating}
+                className="h-9"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="app-icon"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Publish
-              </Button>
+                <div className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  Icon (Emoji)
+                </div>
+              </label>
+              <Input
+                id="app-icon"
+                defaultValue={project.icon}
+                onBlur={(e) => {
+                  if (e.target.value !== project.icon) {
+                    handleInputChange("icon", e.target.value);
+                  }
+                }}
+                placeholder="📱"
+                className="text-center text-xl h-10"
+                maxLength={2}
+                disabled={isUpdating}
+              />
             </div>
           </div>
-        </div>
 
-        {project.originalPrompt && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Original Prompt
+          <div className="space-y-2">
+            <label
+              htmlFor="app-description"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Description
             </label>
-            <div className="p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-              {project.originalPrompt}
-            </div>
+            <Textarea
+              id="app-description"
+              defaultValue={project.description}
+              onBlur={(e) => {
+                if (e.target.value !== project.description) {
+                  handleInputChange("description", e.target.value);
+                }
+              }}
+              placeholder="Describe what your app does and its key features..."
+              rows={4}
+              disabled={isUpdating}
+              className="resize-none"
+            />
           </div>
-        )}
+        </CardContent>
+      </Card>
 
-        {project.model && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              AI Model Used
-            </label>
-            <div className="p-2 bg-blue-50 rounded-md text-sm text-blue-700">
-              {project.model}
+      {/* Status and Version */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Publication Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">
+                Current Version
+              </label>
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <span className="font-mono text-sm">v{project.currentVersion}</span>
+                <Badge variant="secondary" className="text-xs">
+                  {project.versions.length} {project.versions.length === 1 ? 'version' : 'versions'}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">
+                Publication Status
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  variant={project.status === "draft" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleInputChange("status", "draft")}
+                  disabled={isUpdating}
+                  className="flex-1"
+                >
+                  {project.status === "draft" && <Save className="h-4 w-4 mr-1" />}
+                  Draft
+                </Button>
+                <Button
+                  variant={project.status === "published" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handlePublish()}
+                  disabled={isUpdating}
+                  className="flex-1"
+                >
+                  {project.status === "published" && <Globe className="h-4 w-4 mr-1" />}
+                  Published
+                </Button>
+              </div>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Additional Information */}
+      {(project.originalPrompt || project.model) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              Generation Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {project.originalPrompt && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">
+                  Original Prompt
+                </label>
+                <div className="p-4 bg-muted/50 rounded-lg border text-sm leading-relaxed">
+                  {project.originalPrompt}
+                </div>
+              </div>
+            )}
+
+            {project.model && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">
+                  AI Model Used
+                </label>
+                <div className="inline-flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-lg text-sm">
+                  <Bot className="h-4 w-4" />
+                  {project.model}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

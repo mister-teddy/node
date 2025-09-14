@@ -5,11 +5,11 @@ use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 
 pub mod ai;
+pub mod config;
 pub mod database;
 pub mod handlers;
 pub mod models;
 pub mod seed;
-pub mod utils;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -38,7 +38,10 @@ pub fn create_router(database: Arc<database::Database>) -> Router {
     Router::new()
         .route("/", get(redirect_to_frontend))
         .route("/generate", axum::routing::post(ai::generate_code_stream))
-        .route("/generate/modify", axum::routing::post(ai::modify_code_stream))
+        .route(
+            "/generate/modify",
+            axum::routing::post(ai::modify_code_stream),
+        )
         .nest("/api", create_api_router())
         .layer(cors)
         .with_state(AppState {
@@ -53,11 +56,20 @@ fn create_api_router() -> Router<AppState> {
         .route("/models", get(ai::list_models))
         // Database endpoints
         .route("/db", get(handlers::list_collections))
-        .route("/db/:collection", axum::routing::post(handlers::create_document))
+        .route(
+            "/db/:collection",
+            axum::routing::post(handlers::create_document),
+        )
         .route("/db/:collection", get(handlers::list_documents))
         .route("/db/:collection/:id", get(handlers::get_document))
-        .route("/db/:collection/:id", axum::routing::put(handlers::update_document))
-        .route("/db/:collection/:id", axum::routing::delete(handlers::delete_document))
+        .route(
+            "/db/:collection/:id",
+            axum::routing::put(handlers::update_document),
+        )
+        .route(
+            "/db/:collection/:id",
+            axum::routing::delete(handlers::delete_document),
+        )
         .route("/db/reset", axum::routing::post(handlers::reset_database))
         .route("/query", axum::routing::post(handlers::execute_query))
         .route("/reset", axum::routing::post(handlers::reset_database))
@@ -65,13 +77,39 @@ fn create_api_router() -> Router<AppState> {
         .route("/projects", axum::routing::post(handlers::create_project))
         .route("/projects", get(handlers::list_projects))
         .route("/projects/:project_id", get(handlers::get_project))
-        .route("/projects/:project_id", axum::routing::put(handlers::update_project))
-        .route("/projects/:project_id", axum::routing::delete(handlers::delete_project))
-        .route("/projects/:project_id/versions", axum::routing::post(handlers::create_version))
-        .route("/projects/:project_id/versions", get(handlers::list_versions))
-        .route("/projects/:project_id/release", axum::routing::post(handlers::release_version))
-        .route("/projects/:project_id/convert", axum::routing::post(handlers::convert_to_app))
+        .route(
+            "/projects/:project_id",
+            axum::routing::put(handlers::update_project),
+        )
+        .route(
+            "/projects/:project_id",
+            axum::routing::delete(handlers::delete_project),
+        )
+        .route(
+            "/projects/:project_id/versions",
+            axum::routing::post(handlers::create_version),
+        )
+        .route(
+            "/projects/:project_id/versions",
+            get(handlers::list_versions),
+        )
+        .route(
+            "/projects/:project_id/release",
+            axum::routing::post(handlers::release_version),
+        )
+        .route(
+            "/projects/:project_id/convert",
+            axum::routing::post(handlers::convert_to_app),
+        )
+        // Published projects endpoint
+        .route("/published-projects", get(handlers::list_published_projects))
+        // Dashboard endpoints
+        .route("/dashboard/layout", get(handlers::get_dashboard_layout))
+        .route("/dashboard/layout", axum::routing::put(handlers::save_dashboard_layout))
         // App endpoints
         .route("/apps", axum::routing::post(handlers::create_app))
-        .route("/apps/:app_id/source", axum::routing::put(handlers::update_app_source_code))
+        .route(
+            "/apps/:app_id/source",
+            axum::routing::put(handlers::update_app_source_code),
+        )
 }

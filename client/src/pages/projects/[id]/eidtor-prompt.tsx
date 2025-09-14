@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { projectByIdAtom } from "@/state/app-ecosystem";
+import { projectByIdAtom, promptState } from "@/state/app-ecosystem";
 import toast from "react-hot-toast";
 import CONFIG from "@/config";
 
@@ -12,17 +12,17 @@ interface NextPromptProps {
   onStreamingUpdate?: (isStreaming: boolean, streamingContent?: string) => void;
 }
 
-export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
+export function EditorPrompt({ onStreamingUpdate }: NextPromptProps) {
   const { id } = useParams<{ id: string }>();
   const project = useAtomValue(projectByIdAtom(id || ""));
-  const [modificationPrompt, setModificationPrompt] = useState("");
+  const [modificationPrompt, setModificationPrompt] = useAtom(promptState);
   const [isModifying, setIsModifying] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center text-gray-500">
+        <div className="text-center text-muted-foreground">
           <p>Loading project...</p>
         </div>
       </div>
@@ -43,7 +43,7 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
             source_code: sourceCode,
             model: "claude-3-haiku-20240307",
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -65,7 +65,7 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
       return;
     }
 
-    if (!project?.sourceCode) {
+    if (!project?.versions[project.versions.length - 1]?.sourceCode) {
       toast.error("No existing code to modify");
       return;
     }
@@ -83,7 +83,8 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          existing_code: project.sourceCode,
+          existing_code:
+            project.versions[project.versions.length - 1]?.sourceCode,
           modification_prompt: modificationPrompt.trim(),
           model: "claude-3-haiku-20240307",
         }),
@@ -140,7 +141,7 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
                 fullCode += parsed.text;
                 onStreamingUpdate?.(true, fullCode);
               }
-            } catch (e) {
+            } catch {
               // Handle non-JSON data as plain text
               if (data && !data.includes("{")) {
                 console.log("Status:", data);
@@ -175,7 +176,7 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <span>Improve it further</span>
-          <span className="text-sm text-gray-500 font-normal">
+          <span className="text-sm text-muted-foreground font-normal">
             (Version {project.currentVersion})
           </span>
         </CardTitle>
@@ -184,13 +185,13 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
         <div>
           <label
             htmlFor="modification-prompt"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Describe what you want to change:
           </label>
           <Textarea
             id="modification-prompt"
-            placeholder="E.g., Add a dark mode toggle, Fix the button styling, Add a new feature for user profiles..."
+            placeholder="E.g., Add a new feature for user profiles, Fix the button click..."
             value={modificationPrompt}
             onChange={(e) => setModificationPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -227,7 +228,7 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
             ) : (
               <>
                 <span>🪄 Improve </span>
-                <kbd className="px-2 py-1 text-xs bg-gray-100 rounded whitespace-nowrap">
+                <kbd className="px-2 py-1 text-xs bg-muted rounded whitespace-nowrap">
                   ⌘ + Enter
                 </kbd>
               </>
@@ -236,8 +237,10 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
         </div>
 
         {project.versions.length > 0 && (
-          <div className="pt-2 border-t border-gray-200">
-            <div className="text-xs text-gray-500 mb-2">Recent prompts:</div>
+          <div className="pt-2 border-t border-border">
+            <div className="text-xs text-muted-foreground mb-2">
+              Recent prompts:
+            </div>
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {project.versions
                 .slice()
@@ -247,7 +250,7 @@ export function NextPrompt({ onStreamingUpdate }: NextPromptProps) {
                   <button
                     key={version.id}
                     onClick={() => setModificationPrompt(version.prompt)}
-                    className="block w-full text-left text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-2 rounded transition-colors"
+                    className="block w-full text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted p-2 rounded transition-colors"
                     disabled={isModifying || isStreaming}
                   >
                     <span className="font-medium">

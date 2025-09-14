@@ -13,11 +13,9 @@ export interface AppProject {
   description: string;
   icon: string; // emoji for now
   price: number;
-  version: string;
-  sourceCode: string;
   createdAt: Date;
   updatedAt: Date;
-  status: 'draft' | 'published';
+  status: "draft" | "published";
   model?: string; // AI model used for generation
   originalPrompt?: string;
   // Version control
@@ -46,7 +44,7 @@ export interface UpdateAppProjectParams {
   price?: number;
   version?: string;
   sourceCode?: string;
-  status?: 'draft' | 'published';
+  status?: "draft" | "published";
 }
 
 export interface ModifyCodeParams {

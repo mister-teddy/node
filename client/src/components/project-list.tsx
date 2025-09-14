@@ -1,16 +1,19 @@
 import {
+  Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/libs/utils";
 import { useNavigate } from "react-router-dom";
 import { useAtomValue } from "jotai";
 import { projectsAtom } from "@/state/app-ecosystem";
 import GridRenderer from "@/components/grid-renderer";
 import { ProjectAPI } from "@/libs/projects";
+import { Trash2 } from "lucide-react";
 
 export function ProjectList() {
   const navigate = useNavigate();
@@ -18,7 +21,12 @@ export function ProjectList() {
 
   const handleDeleteProject = async (id: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    if (!confirm("Are you sure you want to delete this project? All versions will be lost.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this project? All versions will be lost.",
+      )
+    )
+      return;
 
     try {
       await ProjectAPI.deleteProject(id);
@@ -32,14 +40,16 @@ export function ProjectList() {
 
   if (projects.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-4xl mb-4">📱</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          No projects yet
-        </h3>
-        <p className="text-gray-500">
-          Create your first app project to get started
+      <div className="flex flex-col items-center justify-center py-24 px-4">
+        <div className="text-6xl mb-6 opacity-60">📱</div>
+        <h3 className="text-xl font-semibold mb-3">No projects yet</h3>
+        <p className="text-muted-foreground text-center max-w-md mb-6">
+          Create your first app project to get started building amazing
+          applications
         </p>
+        <Button onClick={() => navigate("/projects/create")} size="lg">
+          Create Your First App
+        </Button>
       </div>
     );
   }
@@ -48,56 +58,54 @@ export function ProjectList() {
     <GridRenderer
       items={projects}
       keyExtractor={(project) => project.id}
+      onClick={(project) => navigate(`/projects/${project.id}/editor`)}
       render={(project) => (
-        <div>
-          <CardHeader className="pb-3">
+        <Card className="group hover:shadow-md transition-all duration-200 cursor-pointer">
+          <CardHeader className="pb-4">
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{project.icon}</span>
-                <div>
-                  <CardTitle className="text-lg">{project.name}</CardTitle>
-                  <CardDescription className="text-sm">
-                    v{project.version}
+              <div className="flex items-start gap-3">
+                <div className="text-3xl p-1 bg-muted/50 rounded-lg">
+                  {project.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base font-semibold leading-tight truncate">
+                    {project.name}
+                  </CardTitle>
+                  <CardDescription className="text-sm mt-1">
+                    Version {project.currentVersion}
                   </CardDescription>
                 </div>
               </div>
-              <div className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => handleDeleteProject(project.id, e)}
-                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                >
-                  🗑️
-                </Button>
-                <button
-                  type="button"
-                  className="text-blue-600 font-bold text-sm ml-2 bg-bg rounded-full px-4 py-1"
-                  onClick={() => navigate(`/projects/${project.id}/editor`)}
-                >
-                  Load
-                </button>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => handleDeleteProject(project.id, e)}
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Delete project</span>
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2 h-10">
+            <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
               {project.description}
             </p>
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <span
-                className={`px-2 py-1 rounded-full ${
-                  project.status === "published"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
+            <div className="flex items-center justify-between">
+              <Badge
+                variant={
+                  project.status === "published" ? "default" : "secondary"
+                }
+                className="text-xs"
               >
                 {project.status}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {formatDate(project.updatedAt)}
               </span>
-              <span>{formatDate(project.updatedAt)}</span>
             </div>
           </CardContent>
-        </div>
+        </Card>
       )}
     />
   );

@@ -1,5 +1,6 @@
 import type { AppTable } from "@/types";
 import AppIcon from "./app-icon";
+import { Button } from "@/components/ui/button";
 
 interface AppInstallPageProps {
   onInstall: () => void;
@@ -8,21 +9,22 @@ interface AppInstallPageProps {
 
 function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
   return (
-    <div className="bg-white min-h-screen px-6 py-8">
+    <div className="bg-background min-h-screen px-6 py-8">
       {/* Header */}
       <div className="flex items-center gap-6">
         <AppIcon app={app} />
         <div>
           <h1 className="text-3xl font-semibold">{app.name}</h1>
-          <p className="text-gray-500 text-sm">{app.description}</p>
+          <p className="text-muted-foreground text-sm">{app.description}</p>
         </div>
         <div className="ml-auto flex flex-col items-end">
-          <button
-            className="bg-blue-500 text-white px-6 py-2 rounded-full font-semibold text-lg shadow"
+          <Button
+            size="lg"
             onClick={onInstall}
+            className="font-semibold text-lg"
           >
             {app.price ? `${app.price}đ` : "Install"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -43,12 +45,12 @@ function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
               </svg>
             ))}
           </div>
-          <div className="text-xs text-gray-500">1 Rating</div>
+          <div className="text-xs text-muted-foreground">1 Rating</div>
         </div>
         <div>
           <div className="flex justify-center mb-1">
             <svg
-              className="w-5 h-5 text-gray-700"
+              className="w-5 h-5 text-foreground"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -61,12 +63,12 @@ function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
               />
             </svg>
           </div>
-          <div className="text-xs text-gray-500">Productivity</div>
+          <div className="text-xs text-muted-foreground">Productivity</div>
         </div>
         <div>
           <div className="flex justify-center mb-1">
             <svg
-              className="w-5 h-5 text-gray-700"
+              className="w-5 h-5 text-foreground"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -79,15 +81,15 @@ function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
               />
             </svg>
           </div>
-          <div className="text-xs text-gray-500">Node</div>
+          <div className="text-xs text-muted-foreground">Node</div>
         </div>
         <div>
           <div className="text-xl font-bold">{app.version}</div>
-          <div className="text-xs text-gray-500">Version</div>
+          <div className="text-xs text-muted-foreground">Version</div>
         </div>
         <div>
           <div className="text-xl font-bold">17,5</div>
-          <div className="text-xs text-gray-500">MB</div>
+          <div className="text-xs text-muted-foreground">MB</div>
         </div>
       </div>
 
@@ -96,7 +98,7 @@ function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
         {["screenshot-1.png", "screenshot-2.png"].map((src, index) => (
           <div
             key={index}
-            className="flex-none min-w-96 max-w-[60vh] bg-gray-100 rounded-xl flex items-center justify-center"
+            className="flex-none min-w-96 max-w-[60vh] bg-muted rounded-xl flex items-center justify-center"
           >
             <img
               src={`/apps/${app.id}/${src}`}
@@ -112,7 +114,7 @@ function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
           <span className="font-bold">{app.name}</span> is ideal for everything
           from note-taking to academic writing
         </blockquote>
-        <div className="text-gray-700 text-sm mb-4">
+        <div className="text-foreground text-sm mb-4">
           A minimalist writing environment with powerful tools to help write,
           think & communicate clearly.
           <br />

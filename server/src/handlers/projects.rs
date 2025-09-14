@@ -1,3 +1,6 @@
+use crate::ai::generate_metadata_from_prompt;
+use crate::models::ListQuery;
+use crate::AppState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -5,12 +8,7 @@ use axum::{
     Json as JsonBody,
 };
 use serde::Deserialize;
-use std::env;
 use uuid::Uuid;
-
-use crate::ai::{AnthropicMessage, AnthropicMessageContent, AnthropicResponse, AppMetadata};
-use crate::models::ListQuery;
-use crate::AppState;
 
 #[derive(Deserialize)]
 pub struct CreateProjectRequest {
@@ -86,94 +84,6 @@ pub async fn create_project(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
-}
-
-async fn generate_metadata_from_prompt(
-    app_state: &AppState,
-    prompt: &str,
-    model: &Option<String>,
-) -> Result<AppMetadata, StatusCode> {
-    let api_key = env::var("ANTHROPIC_API_KEY").map_err(|_| {
-        tracing::error!("ANTHROPIC_API_KEY environment variable is required");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    let metadata_prompt = format!(
-        r#"Generate metadata for a P2P app based on this prompt: "{}"
-
-Return a JSON object with these exact fields:
-- id: kebab-case identifier (e.g., "todo-list")
-- name: App display name
-- description: Brief description (under 100 chars)
-- version: Semantic version (e.g., "1.0.0")
-- price: Price in USD (0.00 for free apps)
-- icon: Single emoji that represents the app
-
-Respond with only valid JSON, no other text."#,
-        prompt
-    );
-
-    let messages = vec![AnthropicMessage {
-        role: "user".to_string(),
-        content: vec![AnthropicMessageContent {
-            content_type: "text".to_string(),
-            text: metadata_prompt,
-        }],
-    }];
-
-    let model = model.as_deref().unwrap_or("claude-3-haiku-20240307");
-
-    let body = serde_json::json!({
-        "model": model,
-        "max_tokens": 1024,
-        "temperature": 0.3,
-        "messages": messages,
-    });
-
-    let response = app_state
-        .client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("Content-Type", "application/json")
-        .header("x-api-key", api_key)
-        .header("anthropic-version", "2023-06-01")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| {
-            tracing::error!("Request to Anthropic API failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        tracing::error!("Anthropic API error: {} - {}", status, error_text);
-        return Err(StatusCode::BAD_GATEWAY);
-    }
-
-    let anthropic_response: AnthropicResponse = response.json().await.map_err(|e| {
-        tracing::error!("Failed to parse Anthropic response: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    let content = anthropic_response
-        .content
-        .as_ref()
-        .and_then(|c| c.first())
-        .ok_or_else(|| {
-            tracing::error!("No content in response");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    let metadata: AppMetadata = serde_json::from_str(&content.text).map_err(|e| {
-        tracing::error!("Failed to parse metadata JSON: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    Ok(metadata)
 }
 
 pub async fn list_projects(
@@ -723,4 +633,84 @@ pub async fn convert_to_app(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+pub async fn list_published_projects(
+    State(app_state): State<AppState>,
+    Query(query): Query<ListQuery>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get all apps from the database (we need to get all first, then filter)
+    let apps_result = app_state
+        .database
+        .list_documents("apps", None, None)
+        .await;
+    let apps = match apps_result {
+        Ok(result) => result,
+        Err(e) => {
+            tracing::error!("Failed to list apps: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Filter for published apps and enrich with source code
+    let all_published_projects: Vec<serde_json::Value> = apps
+        .documents
+        .into_iter()
+        .filter(|doc| {
+            doc.data
+                .get("status")
+                .and_then(|v| v.as_str())
+                .map(|s| s == "published")
+                .unwrap_or(false)
+        })
+        .map(|doc| {
+            let mut project_data = serde_json::json!({
+                "id": doc.data.get("id").unwrap_or(&serde_json::Value::Null),
+                "name": doc.data.get("name").unwrap_or(&serde_json::Value::String("Untitled".to_string())),
+                "description": doc.data.get("description").unwrap_or(&serde_json::Value::String("".to_string())),
+                "version": doc.data.get("version").unwrap_or(&serde_json::Value::String("1.0.0".to_string())),
+                "price": doc.data.get("price").unwrap_or(&serde_json::Value::Number(0.into())),
+                "icon": doc.data.get("icon").unwrap_or(&serde_json::Value::String("📱".to_string())),
+                "installed": doc.data.get("installed").unwrap_or(&serde_json::Value::Number(0.into())),
+                "status": doc.data.get("status").unwrap_or(&serde_json::Value::String("published".to_string())),
+                "project_id": doc.data.get("project_id"),
+                "project_version": doc.data.get("project_version"),
+                "created_at": doc.data.get("created_at").unwrap_or(&serde_json::Value::String(doc.created_at.to_rfc3339())),
+                "prompt": doc.data.get("prompt").unwrap_or(&serde_json::Value::String("".to_string())),
+                "model": doc.data.get("model")
+            });
+
+            // Add flattened source code - this is already stored as a flattened string in the apps collection
+            if let Some(source_code) = doc.data.get("source_code") {
+                project_data.as_object_mut().unwrap().insert("source_code".to_string(), source_code.clone());
+            }
+
+            project_data
+        })
+        .collect();
+
+    let total_count = all_published_projects.len() as i64;
+
+    // Apply pagination after filtering
+    let limit = query.limit.unwrap_or(100) as usize;
+    let offset = query.offset.unwrap_or(0) as usize;
+
+    let published_projects: Vec<serde_json::Value> = all_published_projects
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "data": published_projects,
+        "meta": {
+            "count": total_count,
+            "limit": query.limit.unwrap_or(100),
+            "offset": query.offset.unwrap_or(0)
+        },
+        "links": {
+            "self": "/api/published-projects",
+            "collections": "/api/db"
+        }
+    })))
 }

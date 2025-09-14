@@ -19,63 +19,48 @@ P2P App Ecosystem - decentralized web store for creating, distributing, and purc
 **server/:** `src/main.rs` entry point, modular handlers (`handlers/database.rs`, `handlers/apps.rs`)
 
 ## Development Patterns
-**DB:** Server-side SQLite with RESTful JSON API, no local storage for apps
-**State:** Jotai async atoms (`projectsAtom`, `projectByIdAtom` for server data)
-**API:** Route through Rust server, use `libs/anthropic.ts`
+**DB:** Server-side SQLite with RESTful JSON API
+**State:** Jotai async atoms (`projectsAtom`, `projectByIdAtom`)
 **Files:** Always **kebab-case**
 **Data Flow:** Server database → async atoms → React components
-**Compilation:** After editing code, verify it compiles without errors using `pnpm build` in client/ and `cargo check` in server/
-**File Size Limits:** Keep files under 300 LOC. Split into modules when exceeded:
-- Server handlers: Split by domain (database.rs, apps.rs, auth.rs)
-- Client components: Group by feature or UI pattern
-- Use mod.rs or re-exports to maintain clean imports
-**Route Structure:** Use `/[models]/[id]` pattern for detail pages (e.g., `/projects/[id]/` for project details)
-**Code Duplication Prevention:**
-- NEVER create duplicate components in different directories
-- Consolidate shared components in a single location with clear imports
-- Use relative imports `./component` for collocated components
-- Remove unused/outdated files immediately after refactoring
-- Verify imports and run `pnpm build` after moving components
+**Compilation:** Verify with `pnpm build` (client) and `cargo check` (server)
+**File Size:** <300 LOC, split by domain when exceeded
+**Routes:** Use `/[models]/[id]` pattern for detail pages
+**Code Duplication:** Consolidate shared components, use relative imports, remove unused files
 
-## Specialized Agents
-1. **p2p-app-builder** - P2P apps following ecosystem principles
-2. **anthropic-api-integrator** - Secure API integration
-3. **threejs-3d-ui-developer** - 3D UI (Node OS)
-4. **ui-builder** - React/TypeScript UI components with Apple design consistency
+## Always prefer Claude Subagents:
+
+Automatically delegate tasks to specialized subagents for optimal efficiency:
+
+**ui-builder:** ALL client/* work - triggers: client/, React, TypeScript, UI, components, styling, Tailwind - handles: React/TypeScript components, design system, Jotai state, PWA features
+**rust-server-developer:** ALL server/* work - triggers: server/, Rust, API, database, handlers - handles: Rust code, Axum/Tokio, SQLite, API endpoints, performance optimization
+**threejs-3d-ui-developer:** Specialized client/ work for immersive 3D interfaces - triggers: Three.js, WebGL, 3D UI - handles: 3D components, animations, spatial interactions
+**anthropic-api-integrator:** Specialized server/ work for AI integration - triggers: Anthropic API, Claude, AI features - handles: API integration, prompt engineering, response handling
+
+**Collaboration Flow:**
+- Agents coordinate on API contracts and data structures
+- Cross-reference between client/server for consistent implementation
+- Shared documentation updates when interfaces change
+- Always validate full-stack integration after changes
 
 ## Guidelines
 **Security:** API keys server-only, proxy all external calls
-**Storage:** All app data server-side, use async atoms for state management
-**Testing:** Check existing patterns, focus P2P/offline/Lightning flows
-**Code:** Reuse 75%+ common functions, expand vs duplicate, use Shadcn UI
-**Migration:** Local storage deprecated, use `projectsAtom` and server API
-
-## Server Details
-**Routes:** Health check, JS generation stream
-**AI:** Claude 3 Haiku generates React components with hooks, Host API, Tailwind
-**Stack:** Axum, Tokio, serde, reqwest, tracing
+**Storage:** Server-side only, use async atoms
+**Code:** Reuse 75%+, use Shadcn UI, expand vs duplicate
 
 ## Host APIs
 **Base:** `localhost:10000/api/db` (dev), `node.local:443/api/db` (prod)
 **CRUD:** `GET /api/db` (collections), `POST|GET|PUT|DELETE /api/db/{collection}[/{id}]`
-**Features:** Schema-free JSON, auto-timestamps, UUID IDs, pagination (max 1000)
-
-**JS Integration:** Use `HostAPI.db.{create,get,update,delete,list,collections}()` methods
+**Features:** Schema-free JSON, auto-timestamps, UUID IDs
+**JS:** Use `HostAPI.db.{create,get,update,delete,list,collections}()` methods
 
 ## Config
-**Server:** Port 10000, requires `ANTHROPIC_API_KEY`, <1GB RAM optimized
+**Server:** Port 10000, requires `ANTHROPIC_API_KEY`, <1GB RAM
 **AI:** Claude 3 Haiku, 4096 tokens, temp 1.0
-
-## Task Assignment
-**UI Components:** Use `ui-builder` subagent for all client/ React/TypeScript component work
-**P2P Features:** Use `p2p-app-builder` for decentralized functionality
-**API Integration:** Use `anthropic-api-integrator` for secure external API calls
-**3D Interface:** Use `threejs-3d-ui-developer` for Three.js and WebXR features
 
 ## Rationale
 **Bitcoin/Lightning:** Only scalable decentralized payments
-**IPv6:** No domain gatekeepers, unlimited addresses
+**IPv6:** No domain gatekeepers
 **PWA:** Native experience without app store censorship
-**L402:** Native web micropayments via HTTP 402
+**L402:** Native web micropayments
 **Front-loaded:** <1GB devices, browser processing
-**3D UI:** Intuitive Three.js, WebXR-ready

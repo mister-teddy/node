@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import Spinner from "@/components/spinner";
 import { createProject } from "@/libs/anthropic";
 import { useAtom, useAtomValue } from "jotai";
@@ -14,6 +14,7 @@ import {
 } from "@/state/app-ecosystem";
 import { useAtomCallback } from "jotai/utils";
 import { ModelSelector } from "../../components/model-selector";
+import { Sparkles } from "lucide-react";
 
 export function CreateAppGenerator() {
   const [prompt, setPrompt] = useState("");
@@ -63,16 +64,10 @@ export function CreateAppGenerator() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-2xl">🪄</span>
-          Generate New App
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card className="border-0 shadow-lg">
+      <CardContent className="space-y-6">
         {error && (
-          <div className="p-4 text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg">
+          <div className="p-4 text-destructive text-sm bg-destructive/5 border border-destructive/20 rounded-lg">
             {error}
           </div>
         )}
@@ -86,10 +81,10 @@ export function CreateAppGenerator() {
           />
         </div>
 
-        <div>
+        <div className="space-y-3">
           <label
             htmlFor="app-prompt"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             Describe your app
           </label>
@@ -100,16 +95,20 @@ export function CreateAppGenerator() {
             onKeyDown={(e) => {
               if (e.key === "Enter") handleGenerate();
             }}
-            placeholder="Build a todo app with local storage..."
+            placeholder="Build a todo app with local storage, drag and drop functionality..."
             disabled={isGenerating}
-            className="text-base"
+            className="text-base h-12"
           />
+          <p className="text-xs text-muted-foreground">
+            Be specific about the features you want. The more detail, the better
+            the result.
+          </p>
         </div>
 
         <Button
           onClick={handleGenerate}
           disabled={!prompt.trim() || isGenerating}
-          className="w-full"
+          className="w-full h-12"
           size="lg"
         >
           {isGenerating ? (
@@ -120,7 +119,10 @@ export function CreateAppGenerator() {
               Creating App...
             </div>
           ) : (
-            "Create App"
+            <>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Create App
+            </>
           )}
         </Button>
       </CardContent>
@@ -129,26 +131,17 @@ export function CreateAppGenerator() {
 }
 
 const CreateNewProjectPage: FC = () => {
-  const navigate = useNavigate();
-
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 px-4 pt-4">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Create New App</h1>
-          <Button variant="outline" onClick={() => navigate("/projects")}>
-            Back to Projects
-          </Button>
+    <div className="container mx-auto p-6 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Create New App</h1>
+          <p className="text-muted-foreground mt-2">
+            Use AI to generate your app from a simple description
+          </p>
         </div>
       </div>
-
-      <div className="flex-1 overflow-hidden p-4">
-        <div className="h-full overflow-auto">
-          <div className="max-w-2xl mx-auto">
-            <CreateAppGenerator />
-          </div>
-        </div>
-      </div>
+      <CreateAppGenerator />
     </div>
   );
 };

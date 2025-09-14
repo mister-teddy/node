@@ -7,60 +7,7 @@ import type { ModelInfo } from "../libs/models";
 import { atomWithStorageAndFetch } from "@/libs/jotai";
 import CONFIG from "@/config";
 import type { AppProject, AppProjectVersion } from "@/types/app-project";
-
-// Server API types
-interface ServerResponse<T> {
-  data: T;
-  meta?: {
-    count: number;
-    limit: number;
-    offset: number;
-  };
-  links: {
-    self: string;
-    collections?: string;
-  };
-}
-
-interface VersionData {
-  id: string;
-  project_id: string;
-  version_number: number;
-  prompt: string;
-  source_code: string;
-  model?: string;
-  created_at: string;
-}
-
-interface ServerVersion {
-  id: string;
-  collection: string;
-  data: VersionData;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ProjectData {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  status: "draft" | "published";
-  current_version: number;
-  initial_prompt?: string;
-  initial_model?: string;
-  versions: ServerVersion[];
-  created_at: string;
-  updated_at: string;
-}
-
-interface ServerProject {
-  id: string; // Database document ID
-  collection: string;
-  data: ProjectData;
-  created_at: string;
-  updated_at: string;
-}
+import type { ServerResponse, ServerProject, ServerVersion } from "@/types";
 
 type ProjectsResponse = ServerResponse<ServerProject[]>;
 
@@ -113,8 +60,6 @@ function mapServerProjectToAppProject(
     description: data.description,
     icon: data.icon,
     price: 0, // Default price, could be added to server schema later
-    version: `v${data.current_version}`,
-    sourceCode: currentVersionData?.sourceCode || "",
     createdAt: parseDate(data.created_at),
     updatedAt: parseDate(data.updated_at),
     status: data.status,
@@ -348,4 +293,4 @@ export const convertToAppAtom = atom(
 );
 
 // Export types for use in components
-export type { ServerProject, ProjectData, ProjectsResponse };
+export type { ProjectsResponse };
