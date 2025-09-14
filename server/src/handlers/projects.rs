@@ -639,21 +639,34 @@ pub async fn list_published_projects(
     State(app_state): State<AppState>,
     Query(query): Query<ListQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Get all apps from the database (we need to get all first, then filter)
-    let apps_result = app_state
+    // Get all projects from the database (we need to get all first, then filter)
+    let projects_result = app_state
         .database
-        .list_documents("apps", None, None)
+        .list_documents("projects", None, None)
         .await;
-    let apps = match apps_result {
+    let projects = match projects_result {
         Ok(result) => result,
         Err(e) => {
-            tracing::error!("Failed to list apps: {}", e);
+            tracing::error!("Failed to list projects: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
-    // Filter for published apps and enrich with source code
-    let all_published_projects: Vec<serde_json::Value> = apps
+    // Get all versions for enrichment
+    let versions_result = app_state
+        .database
+        .list_documents("project_versions", None, None)
+        .await;
+    let versions = match versions_result {
+        Ok(result) => result,
+        Err(e) => {
+            tracing::error!("Failed to list project versions: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Filter for published projects and enrich with version data
+    let all_published_projects: Vec<serde_json::Value> = projects
         .documents
         .into_iter()
         .filter(|doc| {
@@ -664,26 +677,32 @@ pub async fn list_published_projects(
                 .unwrap_or(false)
         })
         .map(|doc| {
-            let mut project_data = serde_json::json!({
+            let project_id = doc.data.get("id").and_then(|v| v.as_str()).unwrap_or("");
+
+            // Find all versions for this project
+            let project_versions: Vec<_> = versions
+                .documents
+                .iter()
+                .filter(|version_doc| {
+                    version_doc.data.get("project_id").and_then(|v| v.as_str()) == Some(project_id)
+                })
+                .map(|version_doc| &version_doc.data)
+                .collect();
+
+            // Create project data in the format expected by the frontend
+            let project_data = serde_json::json!({
                 "id": doc.data.get("id").unwrap_or(&serde_json::Value::Null),
                 "name": doc.data.get("name").unwrap_or(&serde_json::Value::String("Untitled".to_string())),
                 "description": doc.data.get("description").unwrap_or(&serde_json::Value::String("".to_string())),
-                "version": doc.data.get("version").unwrap_or(&serde_json::Value::String("1.0.0".to_string())),
-                "price": doc.data.get("price").unwrap_or(&serde_json::Value::Number(0.into())),
                 "icon": doc.data.get("icon").unwrap_or(&serde_json::Value::String("📱".to_string())),
-                "installed": doc.data.get("installed").unwrap_or(&serde_json::Value::Number(0.into())),
                 "status": doc.data.get("status").unwrap_or(&serde_json::Value::String("published".to_string())),
-                "project_id": doc.data.get("project_id"),
-                "project_version": doc.data.get("project_version"),
+                "current_version": doc.data.get("current_version").unwrap_or(&serde_json::Value::Number(0.into())),
+                "initial_prompt": doc.data.get("initial_prompt").unwrap_or(&serde_json::Value::String("".to_string())),
+                "initial_model": doc.data.get("initial_model"),
                 "created_at": doc.data.get("created_at").unwrap_or(&serde_json::Value::String(doc.created_at.to_rfc3339())),
-                "prompt": doc.data.get("prompt").unwrap_or(&serde_json::Value::String("".to_string())),
-                "model": doc.data.get("model")
+                "updated_at": doc.data.get("updated_at").unwrap_or(&serde_json::Value::String(doc.updated_at.to_rfc3339())),
+                "versions": project_versions
             });
-
-            // Add flattened source code - this is already stored as a flattened string in the apps collection
-            if let Some(source_code) = doc.data.get("source_code") {
-                project_data.as_object_mut().unwrap().insert("source_code".to_string(), source_code.clone());
-            }
 
             project_data
         })

@@ -98,6 +98,7 @@ export interface ServerVersion {
   collection: string;
   data: VersionData;
   created_at: string;
+  source_code?: string;
   updated_at: string;
 }
 

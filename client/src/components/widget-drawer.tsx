@@ -1,32 +1,32 @@
 import { useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
   DrawerDescription,
-  DrawerClose,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { availableToAddWidgetsAtom, addWidgetAtom } from "@/state/dashboard";
-// import AppIcon from "@/components/app-icon"; // Not used in this component
-import FormatMoney from "@/components/format/money";
-import type { AppProject } from "@/types/app-project";
+import type { ProjectData } from "@/types";
 
 interface WidgetDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function WidgetDrawer({ open, onOpenChange }: WidgetDrawerProps) {
+export default function WidgetDrawer({
+  open,
+  onOpenChange,
+}: WidgetDrawerProps) {
   const availableWidgets = useAtomValue(availableToAddWidgetsAtom);
   const addWidget = useSetAtom(addWidgetAtom);
   const [addingWidgetId, setAddingWidgetId] = useState<string | null>(null);
 
-  const handleAddWidget = async (widget: AppProject) => {
+  const handleAddWidget = async (widget: ProjectData) => {
     try {
       setAddingWidgetId(widget.id);
       await addWidget(widget);
@@ -42,20 +42,10 @@ export default function WidgetDrawer({ open, onOpenChange }: WidgetDrawerProps) 
     <Drawer open={open} onOpenChange={onOpenChange} direction="bottom">
       <DrawerContent className="h-[80vh]">
         <DrawerHeader className="border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <DrawerTitle>Add Widgets</DrawerTitle>
-              <DrawerDescription>
-                Add widgets to customize your dashboard
-              </DrawerDescription>
-            </div>
-            <DrawerClose asChild>
-              <Button variant="ghost" size="sm">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </DrawerClose>
-          </div>
+          <DrawerTitle>Add Widgets</DrawerTitle>
+          <DrawerDescription>
+            Add widgets to customize your dashboard
+          </DrawerDescription>
         </DrawerHeader>
 
         <div className="flex-1 p-6 overflow-auto">
@@ -64,15 +54,17 @@ export default function WidgetDrawer({ open, onOpenChange }: WidgetDrawerProps) 
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Plus className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No widgets available</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                No widgets available
+              </h3>
               <p className="text-muted-foreground max-w-sm">
-                All available widgets are already on your dashboard. Create new apps
-                in the Projects section to add more widgets.
+                All available widgets are already on your dashboard. Create new
+                apps in the Projects section to add more widgets.
               </p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {availableWidgets.map((widget) => (
+              {availableWidgets.map((widget: ProjectData) => (
                 <WidgetCard
                   key={widget.id}
                   widget={widget}
@@ -89,7 +81,7 @@ export default function WidgetDrawer({ open, onOpenChange }: WidgetDrawerProps) 
 }
 
 interface WidgetCardProps {
-  widget: AppProject;
+  widget: ProjectData;
   isAdding: boolean;
   onAdd: () => void;
 }
@@ -124,10 +116,8 @@ function WidgetCard({ widget, isAdding, onAdd }: WidgetCardProps) {
           </p>
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>v{widget.currentVersion}</span>
-            {widget.price > 0 && (
-              <FormatMoney amount={widget.price} />
-            )}
+            <span>v{widget.current_version}</span>
+            {/* Note: price field not available in ProjectData, would need to be added to server response if needed */}
           </div>
         </div>
 
