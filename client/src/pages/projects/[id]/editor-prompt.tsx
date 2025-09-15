@@ -171,7 +171,7 @@ export function EditorPrompt({ onStreamingUpdate }: NextPromptProps) {
   };
 
   return (
-    <div className="p-6">
+    <>
       <div className="mb-6">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <span>Improve it further</span>
@@ -264,6 +264,6 @@ export function EditorPrompt({ onStreamingUpdate }: NextPromptProps) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

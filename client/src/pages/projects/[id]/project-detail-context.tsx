@@ -2,25 +2,27 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import type { AppProject } from "@/types/app-project";
 
 interface ProjectDetailContextValue {
-  project: AppProject | null;
+  project: AppProject;
   currentCode: string;
   setCurrentCode: (code: string) => void;
   isStreamingCode: boolean;
   setIsStreamingCode: (streaming: boolean) => void;
 }
 
-const ProjectDetailContext = createContext<ProjectDetailContextValue | null>(null);
+const ProjectDetailContext = createContext<ProjectDetailContextValue | null>(
+  null,
+);
 
 interface ProjectDetailProviderProps {
   children: ReactNode;
-  project: AppProject | null;
+  project: AppProject;
   initialCode?: string;
 }
 
 export function ProjectDetailProvider({
   children,
   project,
-  initialCode = ""
+  initialCode = "",
 }: ProjectDetailProviderProps) {
   const [currentCode, setCurrentCode] = useState(initialCode);
   const [isStreamingCode, setIsStreamingCode] = useState(false);
@@ -43,7 +45,9 @@ export function ProjectDetailProvider({
 export function useProjectDetail() {
   const context = useContext(ProjectDetailContext);
   if (!context) {
-    throw new Error("useProjectDetail must be used within a ProjectDetailProvider");
+    throw new Error(
+      "useProjectDetail must be used within a ProjectDetailProvider",
+    );
   }
   return context;
 }

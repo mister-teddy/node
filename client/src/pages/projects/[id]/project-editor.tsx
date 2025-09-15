@@ -2,17 +2,20 @@ import { useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { tomorrow } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Button } from "@/components/ui/button";
+import {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import toast from "react-hot-toast";
 import CONFIG from "@/config";
 import { EditorPrompt } from "./editor-prompt";
 import { useProjectDetail } from "./project-detail-context";
 import { Zap } from "lucide-react";
 
-interface InitialCodeGeneratorProps {
-  projectId: string;
-}
-
-function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
+export function ProjectEditor() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
   const {
@@ -23,7 +26,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
     setIsStreamingCode,
   } = useProjectDetail();
 
-  const generateCode = async () => {
+  const generateInitialCode = async () => {
     if (!project) return;
 
     setIsGenerating(true);
@@ -118,7 +121,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
   const createFirstVersion = async (sourceCode: string, prompt: string) => {
     try {
       const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/versions`,
+        `${CONFIG.API.BASE_URL}/api/projects/${project?.id}/versions`,
         {
           method: "POST",
           headers: {
@@ -147,109 +150,6 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
     }
   };
 
-  if (!project) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center text-muted-foreground">
-          <p>Loading project...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-center h-full p-8">
-      <div className="w-full max-w-2xl">
-        <div className="text-center pb-8">
-          <div className="mb-6">
-            <div className="text-6xl mb-4 opacity-80">{project.icon}</div>
-            <h1 className="text-3xl mb-2 tracking-tight font-semibold">
-              Generate Initial Code
-            </h1>
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold">{project.name}</h3>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                {project.description}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-6">
-          {!isGenerating && !generatedCode && (
-            <div className="text-center space-y-6">
-              <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
-                This project doesn't have any code yet. Click the button below
-                to generate the initial code using AI.
-              </p>
-              <Button
-                onClick={generateCode}
-                size="lg"
-                className="h-12 px-8 gap-2"
-                disabled={isGenerating}
-              >
-                <Zap className="h-5 w-5" />
-                Generate Code
-              </Button>
-            </div>
-          )}
-
-          {isStreamingCode && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Generating code...
-                </p>
-                <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                  <div className="h-full bg-primary rounded-full animate-pulse"></div>
-                </div>
-              </div>
-
-              {currentCode && (
-                <div className="h-80 border border-primary/20 rounded-lg relative overflow-hidden">
-                  <div className="absolute top-2 left-2 z-10 bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    Generating
-                  </div>
-                  <SyntaxHighlighter
-                    language="tsx"
-                    style={tomorrow}
-                    customStyle={{
-                      margin: 0,
-                      padding: "2rem 0.75rem 0.75rem",
-                      fontSize: "0.75rem",
-                      borderRadius: "0.5rem",
-                      height: "100%",
-                      overflow: "auto",
-                      background: "transparent",
-                    }}
-                    wrapLongLines={true}
-                  >
-                    {currentCode}
-                  </SyntaxHighlighter>
-                </div>
-              )}
-            </div>
-          )}
-
-          {generatedCode && !isStreamingCode && (
-            <div className="text-center py-4">
-              <div className="inline-flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
-                <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full" />
-                </div>
-                Code generated successfully! Saving as first version...
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function ProjectEditor() {
-  const { project } = useProjectDetail();
-
   const handleStreamingUpdate = () => {
     // This will be handled by the EditorPrompt component directly updating the context
     // We don't need local state anymore
@@ -257,24 +157,122 @@ export function ProjectEditor() {
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center text-muted-foreground">
-          <p>Loading project...</p>
-        </div>
-      </div>
+      <>
+        <CardHeader>
+          <CardTitle>Project Editor</CardTitle>
+          <CardDescription>Loading project details...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-muted-foreground">
+              <p>Loading project...</p>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter />
+      </>
     );
   }
 
-  // currentCode is now managed by the context and updated either from:
-  // 1. The current version when the component mounts
-  // 2. Streaming content from EditorPrompt
-  // 3. Version selection from ProjectVersions
-
   // If project has no versions (current_version === 0), show code generation UI
   if (project.currentVersion === 0) {
-    return <InitialCodeGenerator projectId={project.id} />;
+    return (
+      <>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="text-4xl opacity-80">{project.icon}</div>
+            <div>
+              <CardTitle>Generate Initial Code</CardTitle>
+              <CardDescription>
+                {project.name} - {project.description}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-full">
+            <div className="w-full max-w-2xl space-y-6">
+              {!isGenerating && !generatedCode && (
+                <div className="text-center space-y-6">
+                  <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
+                    This project doesn't have any code yet. Click the button
+                    below to generate the initial code using AI.
+                  </p>
+                  <Button
+                    onClick={generateInitialCode}
+                    size="lg"
+                    className="h-12 px-8 gap-2"
+                    disabled={isGenerating}
+                  >
+                    <Zap className="h-5 w-5" />
+                    Generate Initial Code
+                  </Button>
+                </div>
+              )}
+
+              {isStreamingCode && (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Generating code...
+                    </p>
+                    <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                      <div className="h-full bg-primary rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+
+                  {currentCode && (
+                    <div className="h-80 border border-primary/20 rounded-lg relative overflow-hidden">
+                      <div className="absolute top-2 left-2 z-10 bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                        <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                        Generating
+                      </div>
+                      <SyntaxHighlighter
+                        language="tsx"
+                        style={tomorrow}
+                        customStyle={{
+                          margin: 0,
+                          padding: "2rem 0.75rem 0.75rem",
+                          fontSize: "0.75rem",
+                          borderRadius: "0.5rem",
+                          height: "100%",
+                          overflow: "auto",
+                          background: "transparent",
+                        }}
+                        wrapLongLines={true}
+                      >
+                        {currentCode}
+                      </SyntaxHighlighter>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {generatedCode && !isStreamingCode && (
+                <div className="text-center py-4">
+                  <div className="inline-flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
+                    <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    </div>
+                    Code generated successfully! Saving as first version...
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter />
+      </>
+    );
   }
 
-  // After generation is complete
-  return <EditorPrompt onStreamingUpdate={handleStreamingUpdate} />;
+  // Project has versions - show editing UI
+  return (
+    <>
+      <CardContent>
+        <EditorPrompt onStreamingUpdate={handleStreamingUpdate} />
+      </CardContent>
+      <CardFooter />
+    </>
+  );
 }

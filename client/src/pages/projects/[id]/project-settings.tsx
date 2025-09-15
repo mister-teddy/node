@@ -1,46 +1,110 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
-import { useAtomValue } from "jotai";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { projectByIdAtom } from "@/state/app-ecosystem";
-import CONFIG from "@/config";
-import toast from "react-hot-toast";
 import {
-  Settings,
-  FileText,
-  Tag,
-  Globe,
-  Bot,
-  Palette,
-  Save,
-} from "lucide-react";
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import FormRenderer, { type FormFieldConfig } from "@/components/form-renderer";
+import CONFIG from "@/config";
+import { useProjectDetail } from "./project-detail-context";
+
+interface ProjectFormData {
+  name: string;
+  icon: string;
+  description: string;
+  status: boolean;
+}
 
 export function ProjectSettings() {
-  const { id } = useParams<{ id: string }>();
-  const project = useAtomValue(projectByIdAtom(id || ""));
-  const [isUpdating, setIsUpdating] = useState(false);
+  const { project } = useProjectDetail();
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center text-muted-foreground">
-          <p>Loading project...</p>
-        </div>
-      </div>
+      <>
+        <CardHeader>
+          <CardTitle>Project Settings</CardTitle>
+          <CardDescription>Loading project settings...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-muted-foreground">
+              <p>Loading project...</p>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter />
+      </>
     );
   }
 
-  const handleInputChange = async (
-    field: "name" | "description" | "icon" | "status",
-    value: string,
-  ) => {
-    if (!project.id) return;
+  const formFields: FormFieldConfig<ProjectFormData>[] = [
+    {
+      name: "name",
+      label: "App Name",
+      type: "text",
+      required: true,
+      placeholder: "Enter app name",
+      validation: {
+        min: 1,
+      },
+    },
+    {
+      name: "icon",
+      label: "Icon (Emoji)",
+      type: "text",
+      required: true,
+      placeholder: "📱",
+      validation: {
+        min: 1,
+        max: 2,
+      },
+    },
+    {
+      name: "description",
+      label: "Description",
+      type: "text",
+      required: true,
+      placeholder: "Describe what your app does and its key features...",
+      validation: {
+        min: 1,
+      },
+    },
+    {
+      name: "status",
+      label: "Publication Status",
+      type: "toggle",
+      required: false,
+      description: "Publish your project to make it publicly available",
+    },
+  ];
 
-    setIsUpdating(true);
+  const handleFormSubmit = async (values: ProjectFormData) => {
     try {
+      // Prepare update data
+      const updateData: Record<string, any> = {};
+
+      if (values.name !== project.name) {
+        updateData.name = values.name;
+      }
+      if (values.icon !== project.icon) {
+        updateData.icon = values.icon;
+      }
+      if (values.description !== project.description) {
+        updateData.description = values.description;
+      }
+
+      // Convert toggle to status string
+      const newStatus = values.status ? "published" : "draft";
+      if (newStatus !== project.status) {
+        updateData.status = newStatus;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return true; // No changes to save
+      }
+
+      // Make API call
       const response = await fetch(
         `${CONFIG.API.BASE_URL}/api/projects/${project.id}`,
         {
@@ -48,7 +112,7 @@ export function ProjectSettings() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ [field]: value }),
+          body: JSON.stringify(updateData),
         },
       );
 
@@ -56,202 +120,37 @@ export function ProjectSettings() {
         throw new Error(`Failed to update project: ${response.status}`);
       }
 
-      toast.success(`Updated ${field} successfully`);
-      // Note: In a real app, you'd want to refresh the atom or use optimistic updates
+      // Reload to reflect changes
       window.location.reload();
+      return true;
     } catch (error) {
-      console.error(`Failed to update ${field}:`, error);
-      toast.error(`Failed to update ${field}`);
-    } finally {
-      setIsUpdating(false);
+      return error instanceof Error
+        ? error
+        : new Error("Failed to update project");
     }
   };
 
-  const handlePublish = () => {
-    handleInputChange("status", "published");
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Basic Information */}
-      <div className="px-6">
-        <div className="pb-6">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Basic Information
-          </h3>
-        </div>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="app-name"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                App Name
-              </label>
-              <Input
-                id="app-name"
-                defaultValue={project.name}
-                onBlur={(e) => {
-                  if (e.target.value !== project.name) {
-                    handleInputChange("name", e.target.value);
-                  }
-                }}
-                placeholder="Enter app name"
-                disabled={isUpdating}
-                className="h-9"
-              />
-            </div>
+    <>
+      <CardContent>
+        <FormRenderer<ProjectFormData>
+          fields={formFields}
+          defaultValues={{
+            name: project.name,
+            icon: project.icon,
+            description: project.description,
+            status: project.status === "published",
+          }}
+          onSubmit={handleFormSubmit}
+          submitButtonProps={{
+            children: "Save Changes",
+            variant: "default",
+            size: "default",
+          }}
+        />
+      </CardContent>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="app-icon"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                <div className="flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  Icon (Emoji)
-                </div>
-              </label>
-              <Input
-                id="app-icon"
-                defaultValue={project.icon}
-                onBlur={(e) => {
-                  if (e.target.value !== project.icon) {
-                    handleInputChange("icon", e.target.value);
-                  }
-                }}
-                placeholder="📱"
-                className="text-center text-xl h-10"
-                maxLength={2}
-                disabled={isUpdating}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label
-              htmlFor="app-description"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Description
-            </label>
-            <Textarea
-              id="app-description"
-              defaultValue={project.description}
-              onBlur={(e) => {
-                if (e.target.value !== project.description) {
-                  handleInputChange("description", e.target.value);
-                }
-              }}
-              placeholder="Describe what your app does and its key features..."
-              rows={4}
-              disabled={isUpdating}
-              className="resize-none"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Status and Version */}
-      <div className="px-6">
-        <div className="pb-6">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            Publication Settings
-          </h3>
-        </div>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
-                Current Version
-              </label>
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                <Tag className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono text-sm">
-                  v{project.currentVersion}
-                </span>
-                <Badge variant="secondary" className="text-xs">
-                  {project.versions.length}{" "}
-                  {project.versions.length === 1 ? "version" : "versions"}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
-                Publication Status
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={project.status === "draft" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleInputChange("status", "draft")}
-                  disabled={isUpdating}
-                  className="flex-1"
-                >
-                  {project.status === "draft" && (
-                    <Save className="h-4 w-4 mr-1" />
-                  )}
-                  Draft
-                </Button>
-                <Button
-                  variant={
-                    project.status === "published" ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handlePublish()}
-                  disabled={isUpdating}
-                  className="flex-1"
-                >
-                  {project.status === "published" && (
-                    <Globe className="h-4 w-4 mr-1" />
-                  )}
-                  Published
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Information */}
-      {(project.originalPrompt || project.model) && (
-        <div className="px-6">
-          <div className="pb-6">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              Generation Details
-            </h3>
-          </div>
-          <div className="space-y-4">
-            {project.originalPrompt && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none">
-                  Original Prompt
-                </label>
-                <div className="p-4 bg-muted/50 rounded-lg border text-sm leading-relaxed">
-                  {project.originalPrompt}
-                </div>
-              </div>
-            )}
-
-            {project.model && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none">
-                  AI Model Used
-                </label>
-                <div className="inline-flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-lg text-sm">
-                  <Bot className="h-4 w-4" />
-                  {project.model}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      <CardFooter />
+    </>
   );
 }

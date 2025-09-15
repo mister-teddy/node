@@ -10,6 +10,9 @@ import {
   TabsContent,
   Badge,
   Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui";
 import { Code, Settings, History } from "lucide-react";
 import { ProjectEditor } from "./project-editor";
@@ -72,6 +75,31 @@ const ProjectDetailPage: FC = () => {
     return <NotFound />;
   }
 
+  const TABS = [
+    {
+      key: "editor",
+      label: "Editor",
+      icon: <Code className="h-4 w-4" />,
+      description: "Edit the project's source code.",
+      content: <ProjectEditor />,
+    },
+    {
+      key: "versions",
+      label: "Versions",
+      icon: <History className="h-4 w-4" />,
+      description: "View and manage previous versions of this project.",
+      content: <ProjectVersions />,
+      action: <Badge>Current: v{project.currentVersion}</Badge>,
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      icon: <Settings className="h-4 w-4" />,
+      description: "Configure project settings and preferences.",
+      content: <ProjectSettings />,
+    },
+  ];
+
   return (
     <ProjectDetailProvider project={project} initialCode={initialCode}>
       <div className="flex flex-col md:flex-row flex-1 min-h-0 gap-6 overflow-hidden px-6 pb-6">
@@ -84,39 +112,34 @@ const ProjectDetailPage: FC = () => {
             className="h-full flex flex-col"
           >
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="editor" className="gap-2">
-                <Code className="h-4 w-4" />
-                Editor
-              </TabsTrigger>
-              <TabsTrigger value="versions" className="gap-2">
-                <History className="h-4 w-4" />
-                Versions
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Settings
-              </TabsTrigger>
+              {TABS.map(({ key, label, icon }) => (
+                <TabsTrigger key={key} value={key} className="gap-2">
+                  {icon}
+                  {label}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             <Card className="flex-1 overflow-y-auto">
-              {[
-                {
-                  value: "editor",
-                  content: <ProjectEditor />,
-                },
-                {
-                  value: "versions",
-                  content: <ProjectVersions />,
-                },
-                {
-                  value: "settings",
-                  content: <ProjectSettings />,
-                },
-              ].map(({ value, content }) => (
-                <TabsContent key={value} value={value}>
-                  {content}
-                </TabsContent>
-              ))}
+              {TABS.map(
+                ({ key, label, description, icon, content, action }) => (
+                  <TabsContent key={key} value={key}>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-muted rounded-lg">{icon}</div>
+                          <div>
+                            <CardTitle className="mb-1">{label}</CardTitle>
+                            <CardDescription>{description}</CardDescription>
+                          </div>
+                        </div>
+                        {action}
+                      </div>
+                    </CardHeader>
+                    {content}
+                  </TabsContent>
+                ),
+              )}
             </Card>
           </Tabs>
         </div>

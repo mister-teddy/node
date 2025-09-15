@@ -10,7 +10,7 @@ import StorePage from "./pages/store";
 import { Button } from "./components/ui";
 import { Wand } from "lucide-react";
 import { atom } from "jotai";
-import { ReactElement, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 export const router = createBrowserRouter([
   {

@@ -17,6 +17,7 @@ import {
   availableWidgetsState,
 } from "@/state/dashboard";
 import AppRenderer from "@/components/app-renderer";
+import { Card } from "@/components/ui";
 
 const DashboardPage: React.FC = () => {
   const dashboardLayout = useAtomValue(dashboardLayoutState);
@@ -112,7 +113,11 @@ const DashboardPage: React.FC = () => {
                       (app as unknown as AppTable).source_code =
                         app.versions[0]?.source_code || "";
                     }
-                    return <AppRenderer app={app as AppTable} />;
+                    return (
+                      <Card className="min-h-0">
+                        <AppRenderer app={app as AppTable} />
+                      </Card>
+                    );
                   },
                 }),
               {},

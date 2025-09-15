@@ -1,9 +1,5 @@
-import { type FC } from "react";
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import Spinner from "@/components/spinner";
 import { createProject } from "@/libs/anthropic";
 import { useAtom, useAtomValue } from "jotai";
@@ -15,10 +11,15 @@ import {
 import { useAtomCallback } from "jotai/utils";
 import { ModelSelector } from "../../components/model-selector";
 import { Sparkles } from "lucide-react";
+import FormRenderer, { type FormFieldConfig } from "@/components/form-renderer";
+import { useState } from "react";
 
-export function CreateAppGenerator() {
-  const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState("");
+// Define form interface
+interface CreateProjectForm {
+  prompt: string;
+}
+
+export function CreateNewProjectPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const navigate = useNavigate();
 
@@ -35,16 +36,36 @@ export function CreateAppGenerator() {
   const effectiveSelectedModel =
     selectedModel || (models.length > 0 ? models[0].id : "");
 
-  const handleGenerate = async () => {
-    if (!prompt.trim() || isGenerating) return;
+  // Define form fields configuration
+  const formFields: FormFieldConfig<CreateProjectForm>[] = [
+    {
+      name: "prompt",
+      label: "Describe your app",
+      type: "text",
+      required: true,
+      placeholder: "Build a todo app with local storage, drag and drop functionality...",
+      description: "Be specific about the features you want. The more detail, the better the result.",
+      validation: {
+        min: 10,
+        custom: (value: string) => {
+          if (value.length < 10) {
+            return "Please provide a more detailed description (at least 10 characters).";
+          }
+          return true;
+        },
+      },
+    },
+  ];
+
+  const handleSubmit = async (values: CreateProjectForm): Promise<true | Error> => {
+    if (isGenerating) return new Error("Already generating project");
 
     setIsGenerating(true);
-    setError("");
 
     try {
       // Create project directly with prompt - server will handle metadata generation
       const projectResponse = await createProject({
-        prompt: prompt.trim(),
+        prompt: values.prompt.trim(),
         model: effectiveSelectedModel,
       });
 
@@ -55,95 +76,51 @@ export function CreateAppGenerator() {
 
       // Navigate to editor page where code will be generated via streaming
       navigate(`/projects/${projectId}/editor`);
-      setPrompt("");
+
+      return true;
     } catch (err) {
-      setError((err as Error).message || "Failed to create project.");
+      console.error("Failed to create project:", err);
+      return new Error("Failed to create project");
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardContent className="space-y-6">
-        {error && (
-          <div className="p-4 text-red-600 dark:text-red-400 text-sm bg-destructive/5 border border-destructive/20 rounded-lg">
-            {error}
-          </div>
-        )}
+    <CardContent className="space-y-6 h-full">
+      <div className="space-y-6">
+        <ModelSelector
+          models={models}
+          selectedModel={effectiveSelectedModel}
+          onModelSelect={setSelectedModel}
+          disabled={isGenerating}
+        />
 
-        <div>
-          <ModelSelector
-            models={models}
-            selectedModel={effectiveSelectedModel}
-            onModelSelect={setSelectedModel}
-            disabled={isGenerating}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <label
-            htmlFor="app-prompt"
-            className="block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Describe your app
-          </label>
-          <Input
-            id="app-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleGenerate();
-            }}
-            placeholder="Build a todo app with local storage, drag and drop functionality..."
-            disabled={isGenerating}
-            className="text-base h-12"
-          />
-          <p className="text-xs text-muted-foreground">
-            Be specific about the features you want. The more detail, the better
-            the result.
-          </p>
-        </div>
-
-        <Button
-          onClick={handleGenerate}
-          disabled={!prompt.trim() || isGenerating}
-          className="w-full h-12"
-          size="lg"
-        >
-          {isGenerating ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4">
-                <Spinner />
+        <FormRenderer
+          fields={formFields}
+          onSubmit={handleSubmit}
+          defaultValues={{ prompt: "" }}
+          submitButtonProps={{
+            children: isGenerating ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4">
+                  <Spinner />
+                </div>
+                Creating App...
               </div>
-              Creating App...
-            </div>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Create App
-            </>
-          )}
-        </Button>
-      </CardContent>
-    </Card>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Create App
+              </>
+            ),
+            size: "lg",
+            className: "w-full h-12",
+          }}
+        />
+      </div>
+    </CardContent>
   );
 }
-
-const CreateNewProjectPage: FC = () => {
-  return (
-    <div className="container mx-auto p-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create New App</h1>
-          <p className="text-muted-foreground mt-2">
-            Use AI to generate your app from a simple description
-          </p>
-        </div>
-      </div>
-      <CreateAppGenerator />
-    </div>
-  );
-};
 
 export default CreateNewProjectPage;

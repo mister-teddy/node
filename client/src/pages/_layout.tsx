@@ -97,7 +97,10 @@ export default function RootLayout() {
       customCrumb
         ? [
             {
-              title: customCrumb,
+              title:
+                typeof customCrumb === "string"
+                  ? customCrumb
+                  : String(customCrumb),
               path: location.pathname,
             },
           ]
