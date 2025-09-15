@@ -2,7 +2,7 @@ import { useSetAtom } from "jotai";
 import { windowsStatesAtom } from "./state/3d";
 import AppRenderer from "./components/app-renderer";
 import type { Active3DWindow, AppTable } from "./types";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { customCrumbState } from "./router";
 
 export function useOpenWindow() {
@@ -58,7 +58,7 @@ export function useOpenAppAsWindow({
   ];
 }
 
-export function useCustomCrumb(title?: string) {
+export function useCustomCrumb(title?: ReactNode) {
   const setCustomCrumb = useSetAtom(customCrumbState);
   useEffect(() => {
     if (title) {

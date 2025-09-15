@@ -12,7 +12,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, isLoading }) 
   return (
     <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
       {isLoading && <Spinner />}
-      <span className="text-blue-700 text-sm font-medium">{status}</span>
+      <span className="text-blue-700 dark:text-blue-400 text-sm font-medium">{status}</span>
     </div>
   );
 };

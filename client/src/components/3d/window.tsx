@@ -152,13 +152,13 @@ export default function Window3D({
                 borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
               }}
             >
-              <span className="text-sm font-semibold text-gray-800 select-none tracking-wide">
+              <span className="text-sm font-semibold text-foreground select-none tracking-wide">
                 {icon && <span>{icon} </span>}
                 {title}
               </span>
               <button
                 onClick={handleClose}
-                className="ml-2 w-5 h-5 rounded-full flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-200/50 transition-colors duration-200"
+                className="ml-2 w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-gray-200/50 transition-colors duration-200"
                 style={{
                   background: "rgba(255, 255, 255, 0.2)",
                 }}

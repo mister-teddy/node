@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import { type FC } from "react";
 
 interface StarRatingProps {
@@ -25,15 +26,12 @@ export const StarRating: FC<StarRatingProps> = ({
         const starIndex = i + 1;
         const isGolden = starIndex <= rating;
         return (
-          <span
-            key={i}
-            className={`transition-all duration-200 ${isGolden ? "" : "grayscale opacity-40"}`}
-            style={{
-              textShadow: isGolden ? "0 0 4px rgba(245, 158, 11, 0.6)" : "none",
-              filter: isGolden ? "drop-shadow(0 1px 2px rgba(245, 158, 11, 0.3))" : "none",
-            }}
-          >
-            ⭐️
+          <span key={i} className={`transition-all duration-200`}>
+            <Star
+              size={14}
+              fill={isGolden ? "#f59e0b" : "#d1d5db"}
+              color={isGolden ? "#f59e0b" : "#d1d5db"}
+            />
           </span>
         );
       })}

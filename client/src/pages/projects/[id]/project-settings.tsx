@@ -4,12 +4,19 @@ import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { projectByIdAtom } from "@/state/app-ecosystem";
 import CONFIG from "@/config";
 import toast from "react-hot-toast";
-import { Settings, FileText, Tag, Globe, Bot, Palette, Save } from "lucide-react";
+import {
+  Settings,
+  FileText,
+  Tag,
+  Globe,
+  Bot,
+  Palette,
+  Save,
+} from "lucide-react";
 
 export function ProjectSettings() {
   const { id } = useParams<{ id: string }>();
@@ -27,20 +34,23 @@ export function ProjectSettings() {
   }
 
   const handleInputChange = async (
-    field: 'name' | 'description' | 'icon' | 'status',
+    field: "name" | "description" | "icon" | "status",
     value: string,
   ) => {
     if (!project.id) return;
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`${CONFIG.API.BASE_URL}/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${CONFIG.API.BASE_URL}/api/projects/${project.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ [field]: value }),
         },
-        body: JSON.stringify({ [field]: value }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to update project: ${response.status}`);
@@ -58,33 +68,20 @@ export function ProjectSettings() {
   };
 
   const handlePublish = () => {
-    handleInputChange('status', 'published');
+    handleInputChange("status", "published");
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-1.5 bg-muted/50 rounded-lg">
-          <Settings className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">App Settings</h2>
-          <p className="text-sm text-muted-foreground">
-            Configure your app's metadata and publishing options
-          </p>
-        </div>
-      </div>
-
       {/* Basic Information */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
+      <div className="px-6">
+        <div className="pb-6">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Basic Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </h3>
+        </div>
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label
@@ -154,19 +151,18 @@ export function ProjectSettings() {
               className="resize-none"
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Status and Version */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
+      <div className="px-6">
+        <div className="pb-6">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
             <Globe className="h-5 w-5" />
             Publication Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-
+          </h3>
+        </div>
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">
@@ -174,9 +170,12 @@ export function ProjectSettings() {
               </label>
               <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                 <Tag className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono text-sm">v{project.currentVersion}</span>
+                <span className="font-mono text-sm">
+                  v{project.currentVersion}
+                </span>
                 <Badge variant="secondary" className="text-xs">
-                  {project.versions.length} {project.versions.length === 1 ? 'version' : 'versions'}
+                  {project.versions.length}{" "}
+                  {project.versions.length === 1 ? "version" : "versions"}
                 </Badge>
               </div>
             </div>
@@ -193,35 +192,41 @@ export function ProjectSettings() {
                   disabled={isUpdating}
                   className="flex-1"
                 >
-                  {project.status === "draft" && <Save className="h-4 w-4 mr-1" />}
+                  {project.status === "draft" && (
+                    <Save className="h-4 w-4 mr-1" />
+                  )}
                   Draft
                 </Button>
                 <Button
-                  variant={project.status === "published" ? "default" : "outline"}
+                  variant={
+                    project.status === "published" ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => handlePublish()}
                   disabled={isUpdating}
                   className="flex-1"
                 >
-                  {project.status === "published" && <Globe className="h-4 w-4 mr-1" />}
+                  {project.status === "published" && (
+                    <Globe className="h-4 w-4 mr-1" />
+                  )}
                   Published
                 </Button>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Additional Information */}
       {(project.originalPrompt || project.model) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <div className="px-6">
+          <div className="pb-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <Bot className="h-5 w-5" />
               Generation Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </h3>
+          </div>
+          <div className="space-y-4">
             {project.originalPrompt && (
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none">
@@ -244,8 +249,8 @@ export function ProjectSettings() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

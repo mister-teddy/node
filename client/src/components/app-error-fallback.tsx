@@ -13,15 +13,15 @@ export const AppErrorFallback = ({ error, app }: AppErrorFallbackProps) => {
     <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-gray-50">
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
         <div className="text-6xl mb-4">⚠️</div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">App Failed to Load</h2>
-        <p className="text-gray-600 mb-2">
+        <h2 className="text-2xl font-bold text-foreground mb-4">App Failed to Load</h2>
+        <p className="text-muted-foreground mb-2">
           {app ? (
             <>Unable to load <strong>{app.name}</strong></>
           ) : (
             "An error occurred while loading the application"
           )}
         </p>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           {error.message || "The app could not be found or failed to load"}
         </p>
         <div className="flex gap-3 justify-center">

@@ -3,7 +3,7 @@ import { ProjectList } from "@/components/project-list";
 
 const ProjectsPage: FC = () => {
   return (
-    <div className="container max-w-screen-2xl mx-auto px-6 py-6">
+    <div className="px-6 pb-6">
       <ProjectList />
     </div>
   );

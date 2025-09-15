@@ -22,7 +22,7 @@ function LauncherItem(props: {
           size: props.preferedSize,
         })
       }
-      className={`flex flex-col items-center justify-center p-4 rounded-lg transition-all duration-200 aspect-square w-full bg-gray-200 text-gray-700 hover:bg-gray-100 hover:shadow-sm`}
+      className={`flex flex-col items-center justify-center p-4 rounded-lg transition-all duration-200 aspect-square w-full bg-muted text-muted-foreground hover:bg-muted/80 hover:shadow-sm`}
     >
       <span className="text-2xl mb-2">{props.item.icon}</span>
       <span className="text-xs font-medium text-center leading-tight">

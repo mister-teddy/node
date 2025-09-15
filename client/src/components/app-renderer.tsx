@@ -18,7 +18,6 @@ import { Button } from "./ui/button";
 // Import all UI components from components/ui/*
 import * as ui from "./ui";
 import toast from "react-hot-toast";
-import { useCustomCrumb } from "@/hooks";
 
 interface AppRendererProps {
   app: AppTable;
@@ -31,7 +30,6 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
 }) => {
   const is3D = useAtomValue(adaptiveIs3DModeAtom);
   const [fullscreen, setFullscreen] = useState(false);
-  useCustomCrumb(app.name);
 
   // Compose context to pass to AppComponent
   const context = { app, React, ui, toast, hostAPI };
@@ -75,23 +73,23 @@ const AppRenderer: FunctionComponent<AppRendererProps> = ({
     </div>
   );
 
-  const overlay = (
-    <>
+  const contentWithContainer = (
+    <div className="w-full h-full relative">
       {content}
       {fullscreenToggle}
-    </>
+    </div>
   );
 
   if (fullscreen) {
     return createPortal(
       <div className="fixed inset-0 bg-white z-50 flex flex-col">
-        {overlay}
+        {contentWithContainer}
       </div>,
       document.body,
     );
   }
 
-  return <div className="relative h-full">{overlay}</div>;
+  return contentWithContainer;
 };
 
 const MemoizedAppRenderer = memo(AppRenderer, (prev, next) => {
@@ -124,10 +122,12 @@ class ErrorBoundary extends React.Component<
         <div className="flex items-center justify-center min-h-screen p-8">
           <div className="text-center max-w-md mx-auto">
             <div className="text-6xl mb-4">🚧</div>
-            <h2 className="text-xl font-bold text-red-600 mb-2">
+            <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
               {`App Execution Error`}
             </h2>
-            <p className="text-gray-600 mb-4">{this.state.errorMessage}</p>
+            <p className="text-muted-foreground mb-4">
+              {this.state.errorMessage}
+            </p>
             <Button
               variant="outline"
               onClick={() => {

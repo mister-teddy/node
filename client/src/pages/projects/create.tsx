@@ -67,7 +67,7 @@ export function CreateAppGenerator() {
     <Card className="border-0 shadow-lg">
       <CardContent className="space-y-6">
         {error && (
-          <div className="p-4 text-destructive text-sm bg-destructive/5 border border-destructive/20 rounded-lg">
+          <div className="p-4 text-red-600 dark:text-red-400 text-sm bg-destructive/5 border border-destructive/20 rounded-lg">
             {error}
           </div>
         )}

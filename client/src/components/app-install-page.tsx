@@ -32,7 +32,7 @@ function AppInstallPage({ onInstall, app }: AppInstallPageProps) {
       <div className="flex gap-8 mt-8 text-center">
         <div>
           <div className="text-xl font-bold">5.0</div>
-          <div className="flex justify-center text-yellow-400 mb-1">
+          <div className="flex justify-center text-yellow-500 dark:text-yellow-400 mb-1">
             {/* Star icons */}
             {[...Array(5)].map((_, i) => (
               <svg

@@ -1,71 +1,12 @@
-import React, { useState } from "react";
-import { useParams } from "react-router-dom";
-import { useAtomValue } from "jotai";
+import { useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { tomorrow } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import AppRenderer from "@/components/app-renderer";
-import { projectByIdAtom } from "@/state/app-ecosystem";
 import toast from "react-hot-toast";
 import CONFIG from "@/config";
-import { EditorPrompt } from "./eidtor-prompt";
-import { AlertTriangle, Copy, Zap } from "lucide-react";
-
-interface AppPreviewErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-}
-
-class AppPreviewErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  AppPreviewErrorBoundaryState
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): AppPreviewErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("AppRenderer error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center justify-center h-full p-8">
-          <Card className="w-full max-w-md border-destructive/20 bg-destructive/5">
-            <CardContent className="pt-6 text-center">
-              <div className="mb-4">
-                <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
-              </div>
-              <h3 className="text-lg font-semibold text-destructive mb-2">
-                App Preview Error
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                The generated code contains errors and cannot be previewed.
-              </p>
-              <details className="text-xs text-muted-foreground text-left">
-                <summary className="cursor-pointer hover:text-foreground transition-colors">
-                  Show error details
-                </summary>
-                <pre className="mt-2 p-3 bg-muted rounded text-xs whitespace-pre-wrap overflow-auto max-h-32">
-                  {this.state.error?.message || "Unknown error"}
-                </pre>
-              </details>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
+import { EditorPrompt } from "./editor-prompt";
+import { useProjectDetail } from "./project-detail-context";
+import { Zap } from "lucide-react";
 
 interface InitialCodeGeneratorProps {
   projectId: string;
@@ -74,16 +15,20 @@ interface InitialCodeGeneratorProps {
 function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
-  const [streamingText, setStreamingText] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const project = useAtomValue(projectByIdAtom(projectId));
+  const {
+    project,
+    currentCode,
+    isStreamingCode,
+    setCurrentCode,
+    setIsStreamingCode,
+  } = useProjectDetail();
 
   const generateCode = async () => {
     if (!project) return;
 
     setIsGenerating(true);
-    setIsStreaming(true);
-    setStreamingText("");
+    setIsStreamingCode(true);
+    setCurrentCode("");
     setGeneratedCode("");
 
     try {
@@ -115,7 +60,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
         const { done, value } = await reader.read();
 
         if (done) {
-          setIsStreaming(false);
+          setIsStreamingCode(false);
           setGeneratedCode(fullCode);
 
           // Create the first version with the generated code
@@ -135,7 +80,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
             const data = trimmedLine.substring(6);
 
             if (data === "[DONE]") {
-              setIsStreaming(false);
+              setIsStreamingCode(false);
               setGeneratedCode(fullCode);
 
               // Create the first version with the generated code
@@ -147,9 +92,9 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
               const parsed = JSON.parse(data);
               if (parsed.type === "token" && parsed.text) {
                 fullCode += parsed.text;
-                setStreamingText(fullCode);
+                setCurrentCode(fullCode);
               }
-            } catch (e) {
+            } catch {
               // Handle non-JSON data as plain text
               if (data && !data.includes("{")) {
                 console.log("Status:", data);
@@ -165,7 +110,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
     } catch (error) {
       console.error("Code generation failed:", error);
       toast.error("Code generation failed. Please try again.");
-      setIsStreaming(false);
+      setIsStreamingCode(false);
       setIsGenerating(false);
     }
   };
@@ -205,7 +150,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center text-gray-500">
+        <div className="text-center text-muted-foreground">
           <p>Loading project...</p>
         </div>
       </div>
@@ -214,13 +159,13 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
 
   return (
     <div className="flex items-center justify-center h-full p-8">
-      <Card className="w-full max-w-2xl border-0 shadow-lg">
-        <CardHeader className="text-center pb-8">
+      <div className="w-full max-w-2xl">
+        <div className="text-center pb-8">
           <div className="mb-6">
             <div className="text-6xl mb-4 opacity-80">{project.icon}</div>
-            <CardTitle className="text-3xl mb-2 tracking-tight">
+            <h1 className="text-3xl mb-2 tracking-tight font-semibold">
               Generate Initial Code
-            </CardTitle>
+            </h1>
             <div className="space-y-2">
               <h3 className="text-xl font-semibold">{project.name}</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
@@ -228,8 +173,8 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
               </p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        </div>
+        <div className="space-y-6">
           {!isGenerating && !generatedCode && (
             <div className="text-center space-y-6">
               <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
@@ -248,7 +193,7 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
             </div>
           )}
 
-          {isStreaming && (
+          {isStreamingCode && (
             <div className="space-y-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-4">
@@ -259,38 +204,36 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
                 </div>
               </div>
 
-              {streamingText && (
-                <Card className="h-80 border-primary/20">
-                  <CardContent className="p-0 h-full relative">
-                    <div className="absolute top-2 left-2 z-10 bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                      Generating
-                    </div>
-                    <SyntaxHighlighter
-                      language="tsx"
-                      style={tomorrow}
-                      customStyle={{
-                        margin: 0,
-                        padding: "2rem 0.75rem 0.75rem",
-                        fontSize: "0.75rem",
-                        borderRadius: "0.5rem",
-                        height: "100%",
-                        overflow: "auto",
-                        background: "transparent",
-                      }}
-                      wrapLongLines={true}
-                    >
-                      {streamingText}
-                    </SyntaxHighlighter>
-                  </CardContent>
-                </Card>
+              {currentCode && (
+                <div className="h-80 border border-primary/20 rounded-lg relative overflow-hidden">
+                  <div className="absolute top-2 left-2 z-10 bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    Generating
+                  </div>
+                  <SyntaxHighlighter
+                    language="tsx"
+                    style={tomorrow}
+                    customStyle={{
+                      margin: 0,
+                      padding: "2rem 0.75rem 0.75rem",
+                      fontSize: "0.75rem",
+                      borderRadius: "0.5rem",
+                      height: "100%",
+                      overflow: "auto",
+                      background: "transparent",
+                    }}
+                    wrapLongLines={true}
+                  >
+                    {currentCode}
+                  </SyntaxHighlighter>
+                </div>
               )}
             </div>
           )}
 
-          {generatedCode && !isStreaming && (
+          {generatedCode && !isStreamingCode && (
             <div className="text-center py-4">
-              <div className="inline-flex items-center gap-2 text-green-600 font-semibold">
+              <div className="inline-flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
                 <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
                   <div className="w-2 h-2 bg-white rounded-full" />
                 </div>
@@ -298,62 +241,34 @@ function InitialCodeGenerator({ projectId }: InitialCodeGeneratorProps) {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function ProjectEditor() {
-  const { id } = useParams<{ id: string }>();
-  const project = useAtomValue(projectByIdAtom(id || ""));
-  const [isStreamingFromPrompt, setIsStreamingFromPrompt] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
+  const { project } = useProjectDetail();
 
-  const handleStreamingUpdate = (isStreaming: boolean, content?: string) => {
-    setIsStreamingFromPrompt(isStreaming);
-    if (content !== undefined) {
-      setStreamingContent(content);
-    }
+  const handleStreamingUpdate = () => {
+    // This will be handled by the EditorPrompt component directly updating the context
+    // We don't need local state anymore
   };
 
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center text-gray-500">
+        <div className="text-center text-muted-foreground">
           <p>Loading project...</p>
         </div>
       </div>
     );
   }
 
-  const detectLanguage = (code: string): string => {
-    if (
-      code.includes("import React") ||
-      code.includes("export default") ||
-      code.includes(".tsx")
-    )
-      return "tsx";
-    if (
-      code.includes("function ") ||
-      code.includes("const ") ||
-      code.includes("=>")
-    )
-      return "javascript";
-    if (
-      code.includes("interface ") ||
-      code.includes("type ") ||
-      code.includes(": string")
-    )
-      return "typescript";
-    return "javascript";
-  };
-
-  const currentCode =
-    isStreamingFromPrompt && streamingContent
-      ? streamingContent
-      : project.versions.find((v) => v.versionNumber === project.currentVersion)
-          ?.sourceCode || "";
+  // currentCode is now managed by the context and updated either from:
+  // 1. The current version when the component mounts
+  // 2. Streaming content from EditorPrompt
+  // 3. Version selection from ProjectVersions
 
   // If project has no versions (current_version === 0), show code generation UI
   if (project.currentVersion === 0) {
@@ -361,94 +276,5 @@ export function ProjectEditor() {
   }
 
   // After generation is complete
-  return (
-    <div className="flex h-full gap-6 p-6">
-      {/* Left Sidebar - Modify Code with Code Preview */}
-      <div className="w-96 flex-shrink-0 flex flex-col space-y-6">
-        {/* Modify Code Panel */}
-        <EditorPrompt onStreamingUpdate={handleStreamingUpdate} />
-
-        {/* Code Preview Panel - Always visible */}
-        <div className="flex-1 min-h-0">
-          <Card
-            className={`h-full relative overflow-hidden border-0 shadow-md ${
-              isStreamingFromPrompt
-                ? "ring-2 ring-primary/20 shadow-primary/10"
-                : ""
-            }`}
-          >
-            {currentCode && (
-              <Button
-                className="absolute bottom-3 right-3 z-10 gap-2"
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const codeToCopy =
-                      isStreamingFromPrompt && streamingContent
-                        ? streamingContent
-                        : project.versions[project.versions.length - 1]
-                            ?.sourceCode || "";
-                    await navigator.clipboard.writeText(codeToCopy);
-                    toast.success("Code copied to clipboard!");
-                  } catch (error) {
-                    console.error("Failed to copy:", error);
-                    toast.error("Failed to copy code");
-                  }
-                }}
-              >
-                <Copy className="h-4 w-4" />
-                Copy
-              </Button>
-            )}
-            {isStreamingFromPrompt && (
-              <div className="absolute top-3 left-3 z-10 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                Live update
-              </div>
-            )}
-            <SyntaxHighlighter
-              language={detectLanguage(currentCode)}
-              style={tomorrow}
-              customStyle={{
-                margin: 0,
-                padding: "1rem",
-                fontSize: "0.75rem",
-                borderRadius: "0.5rem",
-                height: "100%",
-                overflow: "auto",
-                background: "transparent",
-              }}
-              wrapLongLines={true}
-              showLineNumbers={false}
-            >
-              {currentCode}
-            </SyntaxHighlighter>
-          </Card>
-        </div>
-      </div>
-
-      {/* Right Side - Live Preview takes all remaining space */}
-      <div className="flex-1 h-full">
-        <Card className="h-full border-0 shadow-md overflow-hidden">
-          {currentCode && (
-            <AppPreviewErrorBoundary>
-              <AppRenderer
-                app={{
-                  id: project.id,
-                  name: project.name,
-                  source_code: currentCode,
-                  description: project.description,
-                  icon: project.icon,
-                  price: project.price,
-                  version: `${project.currentVersion}`,
-                  installed: 1,
-                }}
-              />
-            </AppPreviewErrorBoundary>
-          )}
-        </Card>
-      </div>
-    </div>
-  );
+  return <EditorPrompt onStreamingUpdate={handleStreamingUpdate} />;
 }

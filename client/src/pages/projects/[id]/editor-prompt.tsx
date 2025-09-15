@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAtom, useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { projectByIdAtom, promptState } from "@/state/app-ecosystem";
 import toast from "react-hot-toast";
@@ -172,16 +171,16 @@ export function EditorPrompt({ onStreamingUpdate }: NextPromptProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
+    <div className="p-6">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
           <span>Improve it further</span>
           <span className="text-sm text-muted-foreground font-normal">
             (Version {project.currentVersion})
           </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </h2>
+      </div>
+      <div className="space-y-4">
         <div>
           <label
             htmlFor="modification-prompt"
@@ -203,7 +202,7 @@ export function EditorPrompt({ onStreamingUpdate }: NextPromptProps) {
         {isStreaming && (
           <div className="space-y-2">
             <div className="text-center">
-              <p className="text-sm text-blue-600 font-medium mb-2">
+              <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-2">
                 Improving code...
               </p>
               <div className="animate-pulse h-1.5 bg-blue-200 rounded-full overflow-hidden">
@@ -264,7 +263,7 @@ export function EditorPrompt({ onStreamingUpdate }: NextPromptProps) {
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -170,7 +170,7 @@ export default function LayoutManager3D({
             }
             className={`px-2 py-1 rounded text-sm border border-white/30 bg-black/20 backdrop-blur ${
               environmentPreset === preset
-                ? "text-indigo-700 font-bold bg-white/20"
+                ? "text-indigo-700 dark:text-indigo-400 font-bold bg-white/20"
                 : "text-white"
             }`}
             title={preset}

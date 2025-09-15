@@ -60,52 +60,45 @@ export function ProjectList() {
       keyExtractor={(project) => project.id}
       onClick={(project) => navigate(`/projects/${project.id}/editor`)}
       render={(project) => (
-        <Card className="group hover:shadow-md transition-all duration-200 cursor-pointer">
-          <CardHeader className="pb-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="text-3xl p-1 bg-muted/50 rounded-lg">
-                  {project.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base font-semibold leading-tight truncate">
-                    {project.name}
-                  </CardTitle>
-                  <CardDescription className="text-sm mt-1">
-                    Version {project.currentVersion}
-                  </CardDescription>
-                </div>
+        <>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="text-3xl p-1 bg-muted/50 rounded-lg">
+                {project.icon}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => handleDeleteProject(project.id, e)}
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete project</span>
-              </Button>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base font-semibold leading-tight truncate">
+                  {project.name}
+                </CardTitle>
+                <CardDescription className="text-sm mt-1">
+                  Version {project.currentVersion}
+                </CardDescription>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
-              {project.description}
-            </p>
-            <div className="flex items-center justify-between">
-              <Badge
-                variant={
-                  project.status === "published" ? "default" : "secondary"
-                }
-                className="text-xs"
-              >
-                {project.status}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {formatDate(project.updatedAt)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => handleDeleteProject(project.id, e)}
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="sr-only">Delete project</span>
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
+            {project.description}
+          </p>
+          <div className="flex items-center justify-between">
+            <Badge
+              variant={project.status === "published" ? "default" : "secondary"}
+              className="text-xs"
+            >
+              {project.status}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {formatDate(project.updatedAt)}
+            </span>
+          </div>
+        </>
       )}
     />
   );

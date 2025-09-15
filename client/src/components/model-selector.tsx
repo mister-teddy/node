@@ -1,6 +1,7 @@
 import { type FC } from "react";
 import type { ModelInfo } from "@/libs/models";
 import { StarRating } from "./star-rating";
+import { Badge } from "./ui/badge";
 
 interface ModelSelectorProps {
   models: ModelInfo[];
@@ -17,7 +18,9 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 }) => {
   if (models.length === 0) {
     return (
-      <div className="text-center py-4 text-muted-foreground">Loading models...</div>
+      <div className="text-center py-4 text-muted-foreground">
+        Loading models...
+      </div>
     );
   }
 
@@ -51,14 +54,17 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
                   <span className="text-2xl flex-shrink-0">{model.icon}</span>
                   <div className="min-w-0 flex-1 flex flex-col justify-between">
                     <div>
-                      <div className="mb-1">
-                        <h3 className="font-medium text-card-foreground text-sm">
-                          {model.name}
-                        </h3>
+                      <h3 className="font-medium text-card-foreground text-sm">
+                        {model.name}
+                      </h3>
+                      <div className="mb-1 flex items-start gap-2">
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                          {model.description}
+                        </p>
+                        {model.special_label && (
+                          <Badge color="red">{model.special_label}</Badge>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
-                        {model.description}
-                      </p>
                     </div>
 
                     {/* Rating bars */}
@@ -78,15 +84,6 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
                     </div>
                   </div>
                 </div>
-
-                {/* Special label sticker */}
-                {model.special_label && (
-                  <div className="absolute bottom-0 left-0">
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-medium px-2 py-0.5 rounded-bl-lg rounded-tr-lg shadow-lg">
-                      {model.special_label}
-                    </div>
-                  </div>
-                )}
               </div>
             </button>
           );
