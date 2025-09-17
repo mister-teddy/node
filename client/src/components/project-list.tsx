@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useAtomValue } from "jotai";
 import { projectsAtom } from "@/state/app-ecosystem";
 import GridRenderer from "@/components/grid-renderer";
-import { ProjectAPI } from "@/libs/projects";
+import { miniServer } from "@/libs/mini-server";
 import { Trash2 } from "lucide-react";
 
 export function ProjectList() {
@@ -23,9 +23,11 @@ export function ProjectList() {
       return;
 
     try {
-      await ProjectAPI.deleteProject(id);
-      // Refresh projects list
-      window.location.reload();
+      await miniServer.DELETE("/api/projects/{project_id}" as any, {
+        params: {
+          path: { project_id: id }
+        },
+      } as any);
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert("Failed to delete project. Please try again.");

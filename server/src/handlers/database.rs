@@ -95,21 +95,24 @@ pub async fn list_documents(
     Path(collection): Path<String>,
     Query(query): Query<ListQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    let limit = query.limit.unwrap_or(100);
+    let offset = query.offset.unwrap_or(0);
+
     match app_state
         .database
-        .list_documents(&collection, query.limit, query.offset)
+        .list_documents(&collection, Some(limit), Some(offset))
         .await
     {
         Ok(result) => Ok(Json(serde_json::json!({
             "data": result.documents,
             "meta": {
                 "count": result.count,
-                "limit": query.limit.unwrap_or(100),
-                "offset": query.offset.unwrap_or(0)
+                "limit": limit,
+                "offset": offset
             },
             "links": {
-                "self": format!("/api/db/{}", collection),
-                "collections": "/api/db"
+                "self": format!("/api/db/{}?limit={}&offset={}", collection, limit, offset),
+                "collection": format!("/api/db/{}", collection)
             }
         }))),
         Err(e) => {
@@ -119,14 +122,13 @@ pub async fn list_documents(
     }
 }
 
-pub async fn list_collections(
-    State(app_state): State<AppState>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+pub async fn list_collections(State(app_state): State<AppState>) -> Result<Json<serde_json::Value>, StatusCode> {
     match app_state.database.list_collections().await {
         Ok(collections) => Ok(Json(serde_json::json!({
             "data": collections,
             "links": {
-                "self": "/api/db"
+                "self": "/api/db",
+                "collections": "/api/db"
             }
         }))),
         Err(e) => {
@@ -143,25 +145,30 @@ pub async fn execute_query(
     match app_state.database.execute_raw_query(&req.query).await {
         Ok(result) => Ok(Json(serde_json::json!({
             "data": result,
-            "message": "Query executed successfully"
+            "meta": {
+                "count": result.len(),
+                "query": req.query
+            },
+            "links": {
+                "self": "/api/query"
+            }
         }))),
         Err(e) => {
             tracing::error!("Failed to execute query: {}", e);
-            Err(StatusCode::BAD_REQUEST)
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }
 
-pub async fn reset_database(
-    State(app_state): State<AppState>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+pub async fn reset_database(State(app_state): State<AppState>) -> Result<Json<serde_json::Value>, StatusCode> {
     match app_state.database.reset_database().await {
-        Ok(()) => {
-            tracing::info!("Database reset successfully");
-            Ok(Json(serde_json::json!({
-                "message": "Database reset successfully. All data has been cleared."
-            })))
-        }
+        Ok(_) => Ok(Json(serde_json::json!({
+            "message": "Database reset successfully",
+            "links": {
+                "self": "/api/db/reset",
+                "collections": "/api/db"
+            }
+        }))),
         Err(e) => {
             tracing::error!("Failed to reset database: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)

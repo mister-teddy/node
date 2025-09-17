@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { ReactNode } from "react";
 import { Suspense, useEffect, useRef } from "react";
 import { useAtomValue } from "jotai";
 import { adaptiveIs3DModeAtom, windowsStatesAtom } from "@/state/3d";
@@ -47,7 +48,7 @@ import { customCrumbState } from "@/router";
 export default function RootLayout() {
   const matches = useMatches() as UIMatch<
     unknown,
-    { crumb?: string; actions?: React.ReactNode[] } | undefined
+    { crumb?: ReactNode; actions?: React.ReactNode[] } | undefined
   >[];
   const is3DMode = useAtomValue(adaptiveIs3DModeAtom);
   const navigate = useNavigate();
@@ -97,10 +98,7 @@ export default function RootLayout() {
       customCrumb
         ? [
             {
-              title:
-                typeof customCrumb === "string"
-                  ? customCrumb
-                  : String(customCrumb),
+              title: customCrumb,
               path: location.pathname,
             },
           ]

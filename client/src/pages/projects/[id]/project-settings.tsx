@@ -6,8 +6,8 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import FormRenderer, { type FormFieldConfig } from "@/components/form-renderer";
-import CONFIG from "@/config";
 import { useProjectDetail } from "./project-detail-context";
+import { miniServer } from "@/libs/mini-server";
 
 interface ProjectFormData {
   name: string;
@@ -105,23 +105,14 @@ export function ProjectSettings() {
       }
 
       // Make API call
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${project.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        },
-      );
+      const response = await miniServer.PUT("/api/projects/{project_id}", {
+        params: { path: { project_id: project.id } },
+        body: updateData,
+      } as any);
 
-      if (!response.ok) {
-        throw new Error(`Failed to update project: ${response.status}`);
+      if (response.error) {
+        throw new Error(`Failed to update project`);
       }
-
-      // Reload to reflect changes
-      window.location.reload();
       return true;
     } catch (error) {
       return error instanceof Error

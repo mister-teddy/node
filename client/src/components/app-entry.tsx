@@ -17,11 +17,10 @@ const AppEntry2D: FunctionComponent<AppEntryProps> = ({ app, children }) => {
 
   return children({
     onClick: () => {
-      if (app.price === 0) {
-        navigate(`/apps/${app.id}`);
-      } else {
+      if (app.price ?? 0 > 0) {
         alert("Payment with Lightning Network is to be implemented");
       }
+      navigate(`/apps/${app.id}`);
     },
   });
 };

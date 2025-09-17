@@ -18,6 +18,7 @@ import { Button } from "./ui/button";
 // Import all UI components from components/ui/*
 import * as ui from "./ui";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 interface AppRendererProps {
   app: AppTable;
@@ -97,7 +98,11 @@ const MemoizedAppRenderer = memo(AppRenderer, (prev, next) => {
 });
 
 class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; setPrompt: (prompt: string) => void },
+  {
+    children: React.ReactNode;
+    setPrompt: (prompt: string) => void;
+    onFix?: () => void;
+  },
   { hasError: boolean; errorMessage: string | null }
 > {
   constructor(props: {
@@ -119,7 +124,7 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center min-h-screen p-8">
+        <div className="flex items-center justify-center p-8">
           <div className="text-center max-w-md mx-auto">
             <div className="text-6xl mb-4">🚧</div>
             <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
@@ -132,6 +137,7 @@ class ErrorBoundary extends React.Component<
               variant="outline"
               onClick={() => {
                 this.props.setPrompt(`Fix ${this.state.errorMessage}`);
+                this.props.onFix?.();
               }}
             >
               Fix this error
@@ -147,9 +153,13 @@ class ErrorBoundary extends React.Component<
 const AppRendererWithBoundary: FunctionComponent<AppRendererProps> = (
   props,
 ) => {
+  const navigate = useNavigate();
   const setPrompt = useSetAtom(promptState);
   return (
-    <ErrorBoundary setPrompt={setPrompt}>
+    <ErrorBoundary
+      setPrompt={setPrompt}
+      onFix={() => navigate(`/projects/${props.app.id}/editor`)}
+    >
       <MemoizedAppRenderer {...props} />
     </ErrorBoundary>
   );

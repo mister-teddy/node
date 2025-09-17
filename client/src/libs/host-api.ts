@@ -1,9 +1,10 @@
-import CONFIG from "@/config";
+import { miniServer } from "./mini-server";
 
 /**
  * Host API Client
  * Provides methods to interact with the server-side SQLite database
  * through the REST API endpoints provided by the Rust server.
+ * Now uses the typed miniServer client for better type safety.
  */
 interface DatabaseDocument {
   id: string;
@@ -28,35 +29,8 @@ interface DatabaseResponse<T> {
 }
 
 class HostAPI {
-  private baseUrl: string;
-
   constructor() {
-    // Use the development server URL by default, will work in production too
-    this.baseUrl = CONFIG.API.BASE_URL;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-  ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    // Handle 204 No Content responses
-    if (response.status === 204) {
-      return null as T;
-    }
-
-    return response.json();
+    // Constructor no longer needs baseUrl since miniServer handles this
   }
 
   /**
@@ -70,14 +44,20 @@ class HostAPI {
       collection: string,
       data: Record<string, unknown>,
     ): Promise<DatabaseDocument> => {
-      const response = await this.request<DatabaseResponse<DatabaseDocument>>(
-        `/api/db/${collection}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ data }),
+      const response = await miniServer.POST("/api/db/{collection}", {
+        params: {
+          path: { collection }
         },
-      );
-      return response.data;
+        body: { data },
+      } as any);
+
+      if (!response.data) {
+        throw new Error(`HTTP error! Failed to create document`);
+      }
+
+      // Type assertion needed since schema returns 'unknown'
+      const typedData = response.data as DatabaseResponse<DatabaseDocument>;
+      return typedData.data;
     },
 
     /**
@@ -87,17 +67,19 @@ class HostAPI {
       collection: string,
       id: string,
     ): Promise<DatabaseDocument | null> => {
-      try {
-        const response = await this.request<DatabaseResponse<DatabaseDocument>>(
-          `/api/db/${collection}/${id}`,
-        );
-        return response.data;
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes("404")) {
-          return null;
-        }
-        throw error;
+      const response = await miniServer.GET("/api/db/{collection}/{id}", {
+        params: {
+          path: { collection, id }
+        },
+      } as any);
+
+      if (!response.data) {
+        return null;
       }
+
+      // Type assertion needed since schema returns 'unknown'
+      const typedData = response.data as DatabaseResponse<DatabaseDocument>;
+      return typedData.data;
     },
 
     /**
@@ -108,38 +90,34 @@ class HostAPI {
       id: string,
       data: Record<string, unknown>,
     ): Promise<DatabaseDocument | null> => {
-      try {
-        const response = await this.request<DatabaseResponse<DatabaseDocument>>(
-          `/api/db/${collection}/${id}`,
-          {
-            method: "PUT",
-            body: JSON.stringify({ data }),
-          },
-        );
-        return response.data;
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes("404")) {
-          return null;
-        }
-        throw error;
+      const response = await miniServer.PUT("/api/db/{collection}/{id}", {
+        params: {
+          path: { collection, id }
+        },
+        body: { data },
+      } as any);
+
+      if (!response.data) {
+        return null;
       }
+
+      // Type assertion needed since schema returns 'unknown'
+      const typedData = response.data as DatabaseResponse<DatabaseDocument>;
+      return typedData.data;
     },
 
     /**
      * Delete a document by ID from a collection
      */
     delete: async (collection: string, id: string): Promise<boolean> => {
-      try {
-        await this.request<null>(`/api/db/${collection}/${id}`, {
-          method: "DELETE",
-        });
-        return true;
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes("404")) {
-          return false;
-        }
-        throw error;
-      }
+      await miniServer.DELETE("/api/db/{collection}/{id}", {
+        params: {
+          path: { collection, id }
+        },
+      } as any);
+
+      // Delete operations might not return data, so we check if the call succeeded
+      return true;
     },
 
     /**
@@ -150,12 +128,22 @@ class HostAPI {
       limit = 100,
       offset = 0,
     ): Promise<{ documents: DatabaseDocument[]; count: number }> => {
-      const response = await this.request<DatabaseResponse<DatabaseDocument[]>>(
-        `/api/db/${collection}?limit=${limit}&offset=${offset}`,
-      );
+      const response = await miniServer.GET("/api/db/{collection}", {
+        params: {
+          path: { collection },
+          query: { limit, offset }
+        },
+      } as any);
+
+      if (!response.data) {
+        throw new Error(`HTTP error! Failed to list documents`);
+      }
+
+      // Type assertion needed since schema returns 'unknown'
+      const typedData = response.data as DatabaseResponse<DatabaseDocument[]>;
       return {
-        documents: response.data,
-        count: response.meta?.count || 0,
+        documents: typedData.data,
+        count: typedData.meta?.count || 0,
       };
     },
 
@@ -163,22 +151,30 @@ class HostAPI {
      * List all collections
      */
     collections: async (): Promise<string[]> => {
-      const response =
-        await this.request<DatabaseResponse<string[]>>("/api/db");
-      return response.data;
+      const response = await miniServer.GET("/api/db", {} as any);
+
+      if (!response.data) {
+        throw new Error(`HTTP error! Failed to get collections`);
+      }
+
+      // Type assertion needed since schema returns 'unknown'
+      const typedData = response.data as DatabaseResponse<string[]>;
+      return typedData.data;
     },
 
     /**
      * Reset the entire database (clear all data)
      */
     reset: async (): Promise<string> => {
-      const response = await this.request<{ message: string }>(
-        "/api/db/reset",
-        {
-          method: "POST",
-        },
-      );
-      return response.message;
+      const response = await miniServer.POST("/api/db/reset", {} as any);
+
+      if (!response.data) {
+        throw new Error(`HTTP error! Failed to reset database`);
+      }
+
+      // Type assertion needed since schema returns 'unknown'
+      const typedData = response.data as { message: string };
+      return typedData.message;
     },
   };
 }

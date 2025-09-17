@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { CardContent } from "@/components/ui/card";
 import Spinner from "@/components/spinner";
-import { createProject } from "@/libs/anthropic";
 import { useAtom, useAtomValue } from "jotai";
 import {
   modelsAtom,
@@ -13,6 +12,7 @@ import { ModelSelector } from "../../components/model-selector";
 import { Sparkles } from "lucide-react";
 import FormRenderer, { type FormFieldConfig } from "@/components/form-renderer";
 import { useState } from "react";
+import { miniServer } from "@/libs/mini-server";
 
 // Define form interface
 interface CreateProjectForm {
@@ -43,8 +43,10 @@ export function CreateNewProjectPage() {
       label: "Describe your app",
       type: "text",
       required: true,
-      placeholder: "Build a todo app with local storage, drag and drop functionality...",
-      description: "Be specific about the features you want. The more detail, the better the result.",
+      placeholder:
+        "Build a todo app with local storage, drag and drop functionality...",
+      description:
+        "Be specific about the features you want. The more detail, the better the result.",
       validation: {
         min: 10,
         custom: (value: string) => {
@@ -57,19 +59,23 @@ export function CreateNewProjectPage() {
     },
   ];
 
-  const handleSubmit = async (values: CreateProjectForm): Promise<true | Error> => {
+  const handleSubmit = async (
+    values: CreateProjectForm,
+  ): Promise<true | Error> => {
     if (isGenerating) return new Error("Already generating project");
 
     setIsGenerating(true);
 
     try {
       // Create project directly with prompt - server will handle metadata generation
-      const projectResponse = await createProject({
-        prompt: values.prompt.trim(),
-        model: effectiveSelectedModel,
+      const projectResponse = await miniServer.POST("/api/projects", {
+        body: {
+          prompt: values.prompt.trim(),
+          model: effectiveSelectedModel,
+        },
       });
 
-      const projectId = projectResponse.data.data.id; // Extract project ID from server response
+      const projectId = projectResponse.data?.data.id; // Extract project ID from server response
 
       // Refresh projects list to show the new project
       refreshProjects();

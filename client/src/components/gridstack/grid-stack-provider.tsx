@@ -5,7 +5,11 @@ import { GridStackContext } from "./grid-stack-context";
 export function GridStackProvider({
   children,
   initialOptions,
-}: PropsWithChildren<{ initialOptions: GridStackOptions }>) {
+  onLayoutChange,
+}: PropsWithChildren<{
+  initialOptions: GridStackOptions;
+  onLayoutChange?: (nodes: any[]) => void;
+}>) {
   const [gridStack, setGridStack] = useState<GridStack | null>(null);
   const [rawWidgetMetaMap, setRawWidgetMetaMap] = useState(() => {
     const map = new Map<string, GridStackWidget>();
@@ -91,6 +95,7 @@ export function GridStackProvider({
       value={{
         initialOptions,
         gridStack,
+        onLayoutChange,
 
         addWidget,
         removeWidget,

@@ -1,7 +1,10 @@
-import React, { useMemo, useState } from "react";
-import { useAtomValue } from "jotai";
-import { installedAppsAtom } from "@/state/app-ecosystem";
-import type { AppTable, ProjectData } from "@/types";
+import React, { useMemo, useCallback } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import type { AppTable } from "@/types";
+
+type AppForRendering = Omit<AppTable, "price" | "version" | "installed"> & {
+  source_code?: string;
+};
 import WidgetDrawer from "@/components/widget-drawer";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Plus } from "lucide-react";
@@ -15,6 +18,9 @@ import {
   dashboardLayoutState,
   dashboardWidgetsAtom,
   availableWidgetsState,
+  updateDashboardLayoutAtom,
+  type DashboardWidget,
+  widgetDrawerOpenAtom,
 } from "@/state/dashboard";
 import AppRenderer from "@/components/app-renderer";
 import { Card } from "@/components/ui";
@@ -22,28 +28,16 @@ import { Card } from "@/components/ui";
 const DashboardPage: React.FC = () => {
   const dashboardLayout = useAtomValue(dashboardLayoutState);
   const availableWidgets = useAtomValue(availableWidgetsState);
-  const installedApps = useAtomValue(installedAppsAtom);
   const dashboardWidgets = useAtomValue(dashboardWidgetsAtom);
-  const [isWidgetDrawerOpen, setIsWidgetDrawerOpen] = useState(false);
-
-  const appsById = useMemo(() => {
-    const appsById = new Map<string, ProjectData | AppTable>();
-    installedApps.forEach((app) => appsById.set(app.id, app));
-    availableWidgets.forEach((widget: ProjectData) =>
-      appsById.set(widget.id, widget),
-    );
-    return appsById;
-  }, [installedApps, availableWidgets]);
+  const updateDashboardLayout = useSetAtom(updateDashboardLayoutAtom);
+  const [isWidgetDrawerOpen, setIsWidgetDrawerOpen] =
+    useAtom(widgetDrawerOpenAtom);
 
   // Build gridOptions from dashboard state
   const gridOptions = useMemo(() => {
-    // Compose children from dashboardLayout.widgets and app/widget data
-    if (!dashboardLayout || (!availableWidgets.length && !installedApps.length))
-      return { acceptWidgets: true, margin: 8, cellHeight: 120, children: [] };
-
     const children = dashboardLayout.widgets
       .map((widget) => {
-        const app = appsById.get(widget.id);
+        const app = availableWidgets.find((w) => w.id === widget.id);
         if (!app || !widget.id) return {};
         // You can customize the content serialization as needed
         return {
@@ -61,31 +55,39 @@ const DashboardPage: React.FC = () => {
 
     return {
       acceptWidgets: true,
-      margin: 12,
+      margin: 24,
+      marginTop: 0,
       cellHeight: 120,
       children,
     };
-  }, [dashboardLayout, availableWidgets, installedApps, dashboardWidgets]);
+  }, [dashboardLayout, availableWidgets]);
 
   const handleAddWidget = () => setIsWidgetDrawerOpen(true);
 
-  return (
-    <GridStackProvider initialOptions={gridOptions}>
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage your widgets. Drag and resize to customize your layout.
-            </p>
-          </div>
-          <Button onClick={handleAddWidget} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Widget
-          </Button>
-        </div>
-      </div>
+  // Handle GridStack layout changes (move, resize)
+  const handleLayoutChange = useCallback(
+    (savedNodes: any[]) => {
+      const updatedWidgets: DashboardWidget[] = savedNodes.map((node) => ({
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        w: node.w,
+        h: node.h,
+      }));
 
+      // Only update if widgets have actually changed
+      if (JSON.stringify(updatedWidgets) !== JSON.stringify(dashboardWidgets)) {
+        // updateDashboardLayout(updatedWidgets);
+      }
+    },
+    [updateDashboardLayout, dashboardWidgets],
+  );
+
+  return (
+    <GridStackProvider
+      initialOptions={gridOptions}
+      onLayoutChange={handleLayoutChange}
+    >
       {dashboardWidgets.length === 0 ? (
         <div className="flex flex-col items-center justify-center self-center py-24 text-center">
           <div className="flex-none w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
@@ -108,14 +110,23 @@ const DashboardPage: React.FC = () => {
               (map, widget) =>
                 Object.assign(map, {
                   [widget.id]: () => {
-                    const app = appsById.get(widget.id)!;
-                    if ("versions" in app) {
-                      (app as unknown as AppTable).source_code =
-                        app.versions[0]?.source_code || "";
-                    }
+                    const app = availableWidgets.find(
+                      (w) => w.id === widget.id,
+                    );
+                    if (!app) return null;
+
+                    // Convert App to AppForRendering format
+                    const appForRendering: AppForRendering = {
+                      id: app.id,
+                      name: app.name,
+                      description: app.description,
+                      icon: app.icon,
+                      source_code: app.source_code || "",
+                    };
+
                     return (
-                      <Card className="min-h-0">
-                        <AppRenderer app={app as AppTable} />
+                      <Card className="w-full h-full !overflow-hidden p-0">
+                        <AppRenderer app={appForRendering as AppTable} />
                       </Card>
                     );
                   },

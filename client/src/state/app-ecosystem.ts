@@ -1,15 +1,26 @@
-import { atom, getDefaultStore } from "jotai";
-import db, { subscribeDB } from "../libs/db";
+import { atom } from "jotai";
 import { atomFamily, atomWithRefresh, atomWithStorage } from "jotai/utils";
-import { startViewTransition } from "../libs/ui";
-import { fetchAvailableModels } from "../libs/anthropic";
-import type { ModelInfo } from "../libs/models";
-import { atomWithStorageAndFetch } from "@/libs/jotai";
-import CONFIG from "@/config";
 import type { AppProject, AppProjectVersion } from "@/types/app-project";
-import type { ServerResponse, ServerProject, ServerVersion } from "@/types";
+import type { ServerProject, ServerVersion } from "@/types";
+import type { components } from "@/libs/mini-server.schema";
+import type { ModelInfo } from "@/types";
+import { miniServer } from "@/libs/mini-server";
 
-type ProjectsResponse = ServerResponse<ServerProject[]>;
+// Type aliases for commonly used schema types
+type App = components["schemas"]["App"];
+type AppListResponse = components["schemas"]["AppListResponse"];
+type ModelInfoResponse = components["schemas"]["ModelInfoResponse"];
+type CreateVersionRequest = components["schemas"]["CreateVersionRequest"];
+type ConvertToAppRequest = components["schemas"]["ConvertToAppRequest"];
+
+// Project types from the generated schema
+type Project = components["schemas"]["Project"];
+type ProjectResponse = components["schemas"]["ProjectResponse"];
+type ProjectListResponse = components["schemas"]["ProjectListResponse"];
+type ProjectVersion = components["schemas"]["ProjectVersion"];
+type ProjectVersionResponse = components["schemas"]["ProjectVersionResponse"];
+type ProjectVersionListResponse =
+  components["schemas"]["ProjectVersionListResponse"];
 
 // Helper function to convert ServerVersion to AppProjectVersion
 function mapServerVersionToAppVersion(
@@ -70,18 +81,18 @@ function mapServerProjectToAppProject(
   };
 }
 
-// Jotai store for external updates
-const store = getDefaultStore();
-subscribeDB("appsChanged", () => {
-  startViewTransition(() => {
-    store.set(appsAtom);
-  });
-});
-
-export const appsAtom = atomWithRefresh(async () => {
+export const appsAtom = atomWithRefresh(async (): Promise<App[]> => {
   try {
-    const apps = await db.getAllApps();
-    return apps;
+    const response = await miniServer.GET("/api/apps");
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "data" in response.data
+    ) {
+      const appListResponse = response.data as AppListResponse;
+      return appListResponse.data || [];
+    }
+    return [];
   } catch (error) {
     console.warn("Handled error: ", error);
     return [];
@@ -90,19 +101,14 @@ export const appsAtom = atomWithRefresh(async () => {
 
 export const installedAppsAtom = atom(async (get) => {
   const apps = await get(appsAtom);
-  return apps.filter((app) => app.installed);
-});
-
-export const storeAppsAtom = atom(async (get) => {
-  const apps = await get(appsAtom);
-  return apps.filter((app) => !app.installed);
+  return apps;
 });
 
 export const appByIdAtom = atomFamily((id: string) =>
-  atom(async () => {
+  atom(async (get): Promise<App | undefined> => {
     try {
-      const result = await db.getAppById(id);
-      return result;
+      const allApps = await get(appsAtom);
+      return allApps.find((app) => app.id === id);
     } catch (error) {
       console.error(`Failed to get app ${id}:`, error);
       return undefined;
@@ -113,16 +119,24 @@ export const appByIdAtom = atomFamily((id: string) =>
 export const promptState = atomWithStorage("prompt", "");
 export const generatedCodeState = atomWithStorage("generatedCode", "");
 
-// Models state management using the reusable utility
-const modelsState = atomWithStorageAndFetch<ModelInfo[]>(
-  "availableModels",
-  [],
-  fetchAvailableModels,
-);
-
-export const modelsAtom = modelsState.atom;
-export const availableModelsAtom = modelsState.storageAtom;
-export const modelsRefreshAtom = modelsState.refreshAtom;
+// Models state management using miniServer
+export const modelsAtom = atomWithRefresh(async (): Promise<ModelInfo[]> => {
+  try {
+    const response = await miniServer.GET("/api/models");
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "data" in response.data
+    ) {
+      const modelInfoResponse = response.data as ModelInfoResponse;
+      return modelInfoResponse.data || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Failed to load models:", error);
+    return [];
+  }
+});
 
 // Selected model atom - defaults to first available model
 export const selectedModelAtom = atomWithStorage<string>("selectedModel", "");
@@ -141,13 +155,52 @@ export const currentSelectedModelAtom = atom(
 // Server-side projects data management
 export const projectsAtom = atomWithRefresh(async (): Promise<AppProject[]> => {
   try {
-    const response = await fetch(`${CONFIG.API.BASE_URL}/api/projects`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch projects: ${response.status}`);
+    const response = await miniServer.GET("/api/projects");
+    if (!response.data) {
+      return [];
     }
-    const result: ProjectsResponse = await response.json();
-    const serverProjects = result.data || [];
-    return serverProjects.map(mapServerProjectToAppProject);
+
+    const projectListResponse = response.data as ProjectListResponse;
+    return projectListResponse.data.map((project: Project) => {
+      // Convert Project to ProjectData format for mapping
+      const projectData = {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        icon: project.icon,
+        status: project.status as "draft" | "published",
+        current_version: project.current_version,
+        initial_prompt: project.initial_prompt || "",
+        initial_model: project.initial_model || "",
+        versions: project.versions
+          ? project.versions.map((version) => ({
+              id: version.id,
+              collection: "versions",
+              data: {
+                id: version.id,
+                project_id: version.project_id,
+                version_number: version.version_number,
+                prompt: version.prompt,
+                source_code: version.source_code,
+                model: version.model || undefined,
+                created_at: version.created_at,
+              },
+              created_at: version.created_at,
+              updated_at: version.created_at,
+            }))
+          : [],
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+      };
+      const serverProject: ServerProject = {
+        id: project.id,
+        collection: "projects",
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        data: projectData,
+      };
+      return mapServerProjectToAppProject(serverProject);
+    });
   } catch (error) {
     console.error("Failed to load projects from server:", error);
     return [];
@@ -158,18 +211,65 @@ export const projectByIdAtom = atomFamily((projectId?: string) =>
   atom(async (): Promise<AppProject | null> => {
     if (!projectId) return null;
     try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${projectId}`,
-      );
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null;
-        }
-        throw new Error(`Failed to fetch project: ${response.status}`);
+      // Using type assertion for path params due to OpenAPI schema generation issue
+      const response = await miniServer.GET("/api/projects/{project_id}", {
+        params: { path: { project_id: projectId } } as any,
+      });
+
+      if (!response.data) {
+        return null;
       }
-      const result: { data: ServerProject } = await response.json();
-      return mapServerProjectToAppProject(result.data);
-    } catch (error) {
+
+      const projectResponse = response.data as ProjectResponse;
+      const project = projectResponse.data;
+
+      // Convert Project to ProjectData format for mapping
+      const projectData = {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        icon: project.icon,
+        status: project.status as "draft" | "published",
+        current_version: project.current_version,
+        initial_prompt: project.initial_prompt || "",
+        initial_model: project.initial_model || "",
+        versions: project.versions
+          ? project.versions.map((version) => ({
+              id: version.id,
+              collection: "versions",
+              data: {
+                id: version.id,
+                project_id: version.project_id,
+                version_number: version.version_number,
+                prompt: version.prompt,
+                source_code: version.source_code,
+                model: version.model || undefined,
+                created_at: version.created_at,
+              },
+              created_at: version.created_at,
+              updated_at: version.created_at,
+            }))
+          : [],
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+      };
+      const serverProject: ServerProject = {
+        id: project.id,
+        collection: "projects",
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        data: projectData,
+      };
+      return mapServerProjectToAppProject(serverProject);
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        error.status === 404
+      ) {
+        return null;
+      }
       console.error(`Failed to load project ${projectId} from server:`, error);
       return null;
     }
@@ -177,27 +277,24 @@ export const projectByIdAtom = atomFamily((projectId?: string) =>
 );
 
 // Project versions atoms - for version control functionality
-export interface ProjectVersionData {
-  id: string;
-  project_id: string;
-  version_number: number;
-  prompt: string;
-  source_code: string;
-  model?: string;
-  created_at: string;
-}
-
 export const projectVersionsAtom = atomFamily((projectId: string) =>
-  atomWithRefresh(async (): Promise<ProjectVersionData[]> => {
+  atomWithRefresh(async (): Promise<ProjectVersion[]> => {
     try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/versions`,
+      // Using type assertion for path params due to OpenAPI schema generation issue
+      const pathParams = { path: { project_id: projectId } };
+      const response = await miniServer.GET(
+        "/api/projects/{project_id}/versions",
+        {
+          params: pathParams as any,
+        },
       );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch versions: ${response.status}`);
+
+      if (!response.data) {
+        return [];
       }
-      const result: { data: ProjectVersionData[] } = await response.json();
-      return (result.data || []).sort(
+
+      const versionListResponse = response.data as ProjectVersionListResponse;
+      return versionListResponse.data.sort(
         (a, b) => b.version_number - a.version_number,
       );
     } catch (error) {
@@ -222,28 +319,27 @@ export const createVersionAtom = atom(
     },
   ) => {
     try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/versions`,
+      const requestBody: CreateVersionRequest = {
+        prompt: versionData.prompt,
+        source_code: versionData.source_code,
+        model: versionData.model || null,
+      };
+
+      // Using type assertion for path params due to OpenAPI schema generation issue
+      const pathParams = { path: { project_id: projectId } };
+      const response = await miniServer.POST(
+        "/api/projects/{project_id}/versions",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(versionData),
+          params: pathParams as any,
+          body: requestBody,
         },
       );
-
-      if (!response.ok) {
-        throw new Error(`Failed to create version: ${response.status}`);
-      }
-
-      const result = await response.json();
 
       // Refresh the versions atom for this project
       const versionsAtom = projectVersionsAtom(projectId);
       set(versionsAtom);
 
-      return result.data;
+      return response.data as ProjectVersionResponse;
     } catch (error) {
       console.error("Failed to create version:", error);
       throw error;
@@ -268,23 +364,21 @@ export const convertToAppAtom = atom(
     },
   ) => {
     try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${projectId}/convert`,
+      const requestBody: ConvertToAppRequest = {
+        version,
+        price: price || null,
+      };
+
+      // Using type assertion for path params due to OpenAPI schema generation issue
+      const pathParams = { path: { project_id: projectId } };
+      const response = await miniServer.POST(
+        "/api/projects/{project_id}/convert",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ version, price }),
+          params: pathParams as any,
+          body: requestBody,
         },
       );
-
-      if (!response.ok) {
-        throw new Error(`Failed to convert to app: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result.data;
+      return response.data as components["schemas"]["AppResponse"];
     } catch (error) {
       console.error("Failed to convert to app:", error);
       throw error;
@@ -293,4 +387,14 @@ export const convertToAppAtom = atom(
 );
 
 // Export types for use in components
-export type { ProjectsResponse };
+export type {
+  App,
+  AppListResponse,
+  ModelInfoResponse,
+  Project,
+  ProjectResponse,
+  ProjectListResponse,
+  ProjectVersion,
+  ProjectVersionResponse,
+  ProjectVersionListResponse,
+};

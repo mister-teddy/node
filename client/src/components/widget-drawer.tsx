@@ -11,7 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { availableToAddWidgetsAtom, addWidgetAtom } from "@/state/dashboard";
-import type { ProjectData } from "@/types";
+import type { components } from "@/libs/mini-server.schema";
+
+type App = components["schemas"]["App"];
 
 interface WidgetDrawerProps {
   open: boolean;
@@ -26,7 +28,7 @@ export default function WidgetDrawer({
   const addWidget = useSetAtom(addWidgetAtom);
   const [addingWidgetId, setAddingWidgetId] = useState<string | null>(null);
 
-  const handleAddWidget = async (widget: ProjectData) => {
+  const handleAddWidget = async (widget: App) => {
     try {
       setAddingWidgetId(widget.id);
       await addWidget(widget);
@@ -64,7 +66,7 @@ export default function WidgetDrawer({
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {availableWidgets.map((widget: ProjectData) => (
+              {availableWidgets.map((widget: App) => (
                 <WidgetCard
                   key={widget.id}
                   widget={widget}
@@ -81,7 +83,7 @@ export default function WidgetDrawer({
 }
 
 interface WidgetCardProps {
-  widget: ProjectData;
+  widget: App;
   isAdding: boolean;
   onAdd: () => void;
 }
@@ -116,8 +118,10 @@ function WidgetCard({ widget, isAdding, onAdd }: WidgetCardProps) {
           </p>
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>v{widget.current_version}</span>
-            {/* Note: price field not available in ProjectData, would need to be added to server response if needed */}
+            <span>v{widget.version}</span>
+            {widget.price > 0 && (
+              <span className="text-primary font-medium">${widget.price}</span>
+            )}
           </div>
         </div>
 

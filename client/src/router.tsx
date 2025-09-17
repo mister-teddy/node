@@ -9,8 +9,9 @@ import CreateNewProjectPage from "./pages/projects/create";
 import StorePage from "./pages/store";
 import { Button } from "./components/ui";
 import { Wand } from "lucide-react";
-import { atom } from "jotai";
-import { type ReactNode } from "react";
+import { atom, useSetAtom } from "jotai";
+import { createElement, type ReactNode } from "react";
+import { widgetDrawerOpenAtom } from "./state/dashboard";
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,19 @@ export const router = createBrowserRouter([
         Component: DashboardPage,
         handle: {
           crumb: "Dashboard",
+          actions: [
+            createElement(function AddWidgetButton() {
+              const setWidgetDrawerOpen = useSetAtom(widgetDrawerOpenAtom);
+              return (
+                <Button
+                  variant="outline"
+                  onClick={() => setWidgetDrawerOpen((o) => !o)}
+                >
+                  Add Widget
+                </Button>
+              );
+            }),
+          ],
         },
       },
       {

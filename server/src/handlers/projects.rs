@@ -1,5 +1,9 @@
 use crate::ai::generate_metadata_from_prompt;
-use crate::models::ListQuery;
+use crate::models::{
+    ListQuery, ProjectResponse, ProjectResponseLinks, ProjectListResponse, ProjectListMeta, ProjectListLinks,
+    ProjectVersionResponse, ProjectVersionResponseLinks, ProjectVersionListResponse, ProjectVersionListMeta, ProjectVersionListLinks,
+    AppResponse, AppResponseLinks
+};
 use crate::AppState;
 use axum::{
     extract::{Path, Query, State},
@@ -7,23 +11,24 @@ use axum::{
     response::Json,
     Json as JsonBody,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct CreateProjectRequest {
     pub prompt: String,
     pub model: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct CreateVersionRequest {
     pub prompt: String,
     pub source_code: String,
     pub model: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct UpdateProjectRequest {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -31,13 +36,13 @@ pub struct UpdateProjectRequest {
     pub status: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct ConvertToAppRequest {
     pub version: i32,
     pub price: Option<f64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct ReleaseVersionRequest {
     pub version_number: i32,
     pub price: Option<f64>,
@@ -46,7 +51,7 @@ pub struct ReleaseVersionRequest {
 pub async fn create_project(
     State(app_state): State<AppState>,
     JsonBody(req): JsonBody<CreateProjectRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectResponse>, StatusCode> {
     // Generate metadata from the prompt first
     let metadata = generate_metadata_from_prompt(&app_state, &req.prompt, &req.model).await?;
 
@@ -73,12 +78,16 @@ pub async fn create_project(
         .create_document("projects", project_data)
         .await
     {
-        Ok(project_doc) => Ok(Json(serde_json::json!({
-            "data": project_doc,
-            "links": {
-                "self": format!("/api/projects/{}", project_id)
-            }
-        }))),
+        Ok(project_doc) => {
+            let response = ProjectResponse {
+                data: project_doc.into(),
+                links: ProjectResponseLinks {
+                    self_link: format!("/api/projects/{}", project_id),
+                    versions: Some(format!("/api/projects/{}/versions", project_id)),
+                },
+            };
+            Ok(Json(response))
+        },
         Err(e) => {
             tracing::error!("Failed to create project: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -89,24 +98,30 @@ pub async fn create_project(
 pub async fn list_projects(
     State(app_state): State<AppState>,
     Query(query): Query<ListQuery>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectListResponse>, StatusCode> {
+    let limit = query.limit.unwrap_or(100);
+    let offset = query.offset.unwrap_or(0);
+
     match app_state
         .database
-        .list_documents("projects", query.limit, query.offset)
+        .list_documents("projects", Some(limit), Some(offset))
         .await
     {
-        Ok(result) => Ok(Json(serde_json::json!({
-            "data": result.documents,
-            "meta": {
-                "count": result.count,
-                "limit": query.limit.unwrap_or(100),
-                "offset": query.offset.unwrap_or(0)
-            },
-            "links": {
-                "self": "/api/projects",
-                "collections": "/api/db"
-            }
-        }))),
+        Ok(result) => {
+            let response = ProjectListResponse {
+                data: result.documents.into_iter().map(|doc| doc.into()).collect(),
+                meta: ProjectListMeta {
+                    count: result.count,
+                    limit,
+                    offset,
+                },
+                links: ProjectListLinks {
+                    self_link: format!("/api/projects?limit={}&offset={}", limit, offset),
+                    collection: "/api/projects".to_string(),
+                },
+            };
+            Ok(Json(response))
+        },
         Err(e) => {
             tracing::error!("Failed to list projects: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -117,7 +132,7 @@ pub async fn list_projects(
 pub async fn get_project(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectResponse>, StatusCode> {
     // Find project by data.id field
     let projects_result = app_state
         .database
@@ -199,20 +214,26 @@ pub async fn get_project(
         updated_at: project_doc.updated_at,
     };
 
-    Ok(Json(serde_json::json!({
-        "data": enriched_project_doc,
-        "links": {
-            "self": format!("/api/projects/{}", project_id),
-            "versions": format!("/api/projects/{}/versions", project_id)
-        }
-    })))
+    let mut project: crate::models::Project = enriched_project_doc.into();
+
+    // Convert the all_versions Vec<Document> to Vec<ProjectVersion>
+    project.versions = Some(all_versions.into_iter().map(|doc| doc.into()).collect());
+
+    let response = ProjectResponse {
+        data: project,
+        links: ProjectResponseLinks {
+            self_link: format!("/api/projects/{}", project_id),
+            versions: Some(format!("/api/projects/{}/versions", project_id)),
+        },
+    };
+    Ok(Json(response))
 }
 
 pub async fn update_project(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
     JsonBody(req): JsonBody<UpdateProjectRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectResponse>, StatusCode> {
     // Find the project by its data.id field
     let projects_result = app_state
         .database
@@ -264,12 +285,16 @@ pub async fn update_project(
         .update_document("projects", &project_document.id, project_document.data)
         .await
     {
-        Ok(Some(updated_document)) => Ok(Json(serde_json::json!({
-            "data": updated_document,
-            "links": {
-                "self": format!("/api/projects/{}", project_id)
-            }
-        }))),
+        Ok(Some(updated_document)) => {
+            let response = ProjectResponse {
+                data: updated_document.into(),
+                links: ProjectResponseLinks {
+                    self_link: format!("/api/projects/{}", project_id),
+                    versions: Some(format!("/api/projects/{}/versions", project_id)),
+                },
+            };
+            Ok(Json(response))
+        },
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(e) => {
             tracing::error!("Failed to update project: {}", e);
@@ -345,7 +370,7 @@ pub async fn create_version(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
     JsonBody(req): JsonBody<CreateVersionRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectVersionResponse>, StatusCode> {
     // Get current project to determine next version number
     let projects_result = app_state
         .database
@@ -410,13 +435,14 @@ pub async fn create_version(
                 .update_document("projects", &project_document.id, project_document.data)
                 .await;
 
-            Ok(Json(serde_json::json!({
-                "data": version_doc,
-                "links": {
-                    "self": format!("/api/projects/{}/versions/{}", project_id, next_version),
-                    "project": format!("/api/projects/{}", project_id)
-                }
-            })))
+            let response = ProjectVersionResponse {
+                data: version_doc.into(),
+                links: ProjectVersionResponseLinks {
+                    self_link: format!("/api/projects/{}/versions/{}", project_id, next_version),
+                    project: format!("/api/projects/{}", project_id),
+                },
+            };
+            Ok(Json(response))
         }
         Err(e) => {
             tracing::error!("Failed to create project version: {}", e);
@@ -428,7 +454,7 @@ pub async fn create_version(
 pub async fn list_versions(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectVersionListResponse>, StatusCode> {
     let versions_result = app_state
         .database
         .list_documents("project_versions", Some(1000), Some(0))
@@ -447,24 +473,28 @@ pub async fn list_versions(
         .filter(|doc| doc.data.get("project_id").and_then(|v| v.as_str()) == Some(&project_id))
         .collect();
 
-    Ok(Json(serde_json::json!({
-        "data": project_versions,
-        "meta": {
-            "count": project_versions.len(),
-            "project_id": project_id
+    let count = project_versions.len() as i64;
+    let project_id_for_links = project_id.clone();
+
+    let response = ProjectVersionListResponse {
+        data: project_versions.into_iter().map(|doc| doc.into()).collect(),
+        meta: ProjectVersionListMeta {
+            count,
+            project_id,
         },
-        "links": {
-            "self": format!("/api/projects/{}/versions", project_id),
-            "project": format!("/api/projects/{}", project_id)
-        }
-    })))
+        links: ProjectVersionListLinks {
+            self_link: format!("/api/projects/{}/versions", project_id_for_links),
+            project: format!("/api/projects/{}", project_id_for_links),
+        },
+    };
+    Ok(Json(response))
 }
 
 pub async fn release_version(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
     JsonBody(req): JsonBody<ReleaseVersionRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<AppResponse>, StatusCode> {
     // Get project
     let projects_result = app_state
         .database
@@ -534,13 +564,15 @@ pub async fn release_version(
     });
 
     match app_state.database.create_document("apps", app_data).await {
-        Ok(app_doc) => Ok(Json(serde_json::json!({
-            "data": app_doc,
-            "links": {
-                "self": format!("/api/apps/{}", app_id),
-                "project": format!("/api/projects/{}", project_id)
-            }
-        }))),
+        Ok(app_doc) => {
+            let response = AppResponse {
+                data: app_doc.into(),
+                links: AppResponseLinks {
+                    self_link: format!("/api/apps/{}", app_id),
+                },
+            };
+            Ok(Json(response))
+        },
         Err(e) => {
             tracing::error!("Failed to release version as app: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -552,7 +584,7 @@ pub async fn convert_to_app(
     State(app_state): State<AppState>,
     Path(project_id): Path<String>,
     JsonBody(req): JsonBody<ConvertToAppRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<AppResponse>, StatusCode> {
     // Get project
     let projects_result = app_state
         .database
@@ -621,13 +653,15 @@ pub async fn convert_to_app(
     });
 
     match app_state.database.create_document("apps", app_data).await {
-        Ok(app_doc) => Ok(Json(serde_json::json!({
-            "data": app_doc,
-            "links": {
-                "self": format!("/api/apps/{}", app_id),
-                "project": format!("/api/projects/{}", project_id)
-            }
-        }))),
+        Ok(app_doc) => {
+            let response = AppResponse {
+                data: app_doc.into(),
+                links: AppResponseLinks {
+                    self_link: format!("/api/apps/{}", app_id),
+                },
+            };
+            Ok(Json(response))
+        },
         Err(e) => {
             tracing::error!("Failed to convert project to app: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -638,7 +672,7 @@ pub async fn convert_to_app(
 pub async fn list_published_projects(
     State(app_state): State<AppState>,
     Query(query): Query<ListQuery>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<ProjectListResponse>, StatusCode> {
     // Get all projects from the database (we need to get all first, then filter)
     let projects_result = app_state
         .database
@@ -720,16 +754,30 @@ pub async fn list_published_projects(
         .take(limit)
         .collect();
 
-    Ok(Json(serde_json::json!({
-        "data": published_projects,
-        "meta": {
-            "count": total_count,
-            "limit": query.limit.unwrap_or(100),
-            "offset": query.offset.unwrap_or(0)
+    // Convert serde_json::Value projects to Project structs
+    let projects: Vec<crate::models::Project> = published_projects.into_iter().map(|project_data| {
+        // Create a mock Document to use the From<Document> trait
+        let doc = crate::models::Document {
+            id: project_data.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            collection: "projects".to_string(),
+            data: project_data,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        doc.into()
+    }).collect();
+
+    let response = ProjectListResponse {
+        data: projects,
+        meta: ProjectListMeta {
+            count: total_count,
+            limit: query.limit.unwrap_or(100),
+            offset: query.offset.unwrap_or(0),
         },
-        "links": {
-            "self": "/api/published-projects",
-            "collections": "/api/db"
-        }
-    })))
+        links: ProjectListLinks {
+            self_link: "/api/published-projects".to_string(),
+            collection: "/api/projects".to_string(),
+        },
+    };
+    Ok(Json(response))
 }

@@ -5,16 +5,9 @@ import { Input } from "@/components/ui/input";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { useProjectDetail } from "./project-detail-context";
-import CONFIG from "@/config";
 import toast from "react-hot-toast";
-import {
-  Clock,
-  Code,
-  Trash2,
-  RotateCcw,
-  Rocket,
-  DollarSign,
-} from "lucide-react";
+import { Code, Trash2, RotateCcw, Rocket, DollarSign } from "lucide-react";
+import { miniServer } from "@/libs/mini-server";
 
 export function ProjectVersions() {
   const { project, setCurrentCode } = useProjectDetail();
@@ -67,19 +60,13 @@ export function ProjectVersions() {
     const price = parseFloat(releasePrice[versionNumber] || "0");
     setIsReleasing(versionNumber);
     try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${project.id}/release`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            version_number: versionNumber,
-            price: price > 0 ? price : undefined,
-          }),
+      await miniServer.POST("/api/projects/{project_id}/release", {
+        params: { path: { project_id: project.id } } as any,
+        body: {
+          price,
+          version_number: versionNumber,
         },
-      );
-      if (!response.ok)
-        throw new Error(`Failed to release version: ${response.status}`);
+      });
       toast.success(`Version ${versionNumber} released successfully!`);
       setReleasePrice((prev) => ({ ...prev, [versionNumber]: "" }));
     } catch (error) {
@@ -108,61 +95,19 @@ export function ProjectVersions() {
                 }`}
               >
                 {/* Version Header */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col mb-2">
+                  <div className="flex justify-between items-center gap-2">
                     <Badge
                       variant={isCurrent ? "default" : "secondary"}
                       className="font-mono text-xs px-2 py-1"
                     >
                       v{version.versionNumber}
                     </Badge>
-                    {isCurrent && (
-                      <Badge variant="outline" className="text-xs px-2 py-0.5">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Active
-                      </Badge>
-                    )}
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(version.createdAt, {
                         addSuffix: true,
                       })}
                     </span>
-                    {version.model && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-muted px-2 py-0.5"
-                      >
-                        {version.model.replace("claude-3-", "")}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {!isCurrent && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleSwitchVersion(version.versionNumber)
-                        }
-                        className="h-7 gap-1.5 px-2"
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        Switch
-                      </Button>
-                    )}
-                    {project.versions.length > 1 && !isCurrent && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleDeleteVersion(version.versionNumber)
-                        }
-                        className="h-7 px-2"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
                   </div>
                 </div>
 
@@ -179,7 +124,12 @@ export function ProjectVersions() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-foreground mb-1">
-                          Prompt
+                          Prompt{" "}
+                          {version.model && (
+                            <Badge variant="outline">
+                              {version.model.replace("claude-3-", "")}
+                            </Badge>
+                          )}
                         </p>
                         <p className="text-xs text-muted-foreground leading-snug">
                           {version.prompt.length > 200 && !isExpanded
@@ -192,6 +142,30 @@ export function ProjectVersions() {
                       </div>
                     </div>
                   </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!isCurrent && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSwitchVersion(version.versionNumber)}
+                      className="h-7 gap-1.5 px-2 flex-1"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Switch
+                    </Button>
+                  )}
+                  {project.versions.length > 1 && !isCurrent && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteVersion(version.versionNumber)}
+                      className="h-7 px-2"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
 
                 {/* Expanded Content */}
@@ -252,7 +226,7 @@ export function ProjectVersions() {
                             isReleasing === version.versionNumber ||
                             !version.sourceCode
                           }
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3 flex-1"
                         >
                           {isReleasing === version.versionNumber ? (
                             <div className="flex items-center gap-1.5">

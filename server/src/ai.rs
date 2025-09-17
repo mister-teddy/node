@@ -4,6 +4,7 @@ use axum::response::sse::{Event, Sse};
 use axum::Json;
 use futures::stream::Stream;
 use reqwest::Client;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::time::Duration;
@@ -75,20 +76,20 @@ pub async fn anthropic_request(
     Ok(response)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct GenerateRequest {
     pub prompt: String,
     pub model: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct ModifyCodeRequest {
     pub existing_code: String,
     pub modification_prompt: String,
     pub model: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct AppMetadata {
     pub id: String,
     pub name: String,
@@ -98,7 +99,7 @@ pub struct AppMetadata {
     pub icon: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct AnthropicModel {
     pub id: String,
     pub display_name: String,
@@ -107,7 +108,7 @@ pub struct AnthropicModel {
     pub model_type: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct ModelsResponse {
     pub data: Vec<AnthropicModel>,
     pub has_more: bool,
@@ -115,7 +116,7 @@ pub struct ModelsResponse {
     pub last_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
@@ -127,7 +128,7 @@ pub struct ModelInfo {
     pub special_label: Option<String>, // "flagship", "most powerful", etc.
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct ModelInfoResponse {
     pub data: Vec<ModelInfo>,
     pub has_more: bool,
@@ -273,7 +274,7 @@ fn get_model_metadata(model_id: &str) -> ModelInfo {
 
 pub async fn list_models(
     State(app_state): State<AppState>,
-) -> Result<Json<ModelInfoResponse>, (axum::http::StatusCode, String)> {
+) -> Result<Json<ModelInfoResponse>, (StatusCode, String)> {
     let response = anthropic_request(
         &app_state.client,
         RequestMethod::Get,

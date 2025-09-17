@@ -1,51 +1,99 @@
-import { useState } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { tomorrow } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useAtom } from "jotai";
 import { Button } from "@/components/ui/button";
-import {
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import CONFIG from "@/config";
-import { EditorPrompt } from "./editor-prompt";
+import { promptState } from "@/state/app-ecosystem";
 import { useProjectDetail } from "./project-detail-context";
-import { Zap } from "lucide-react";
+import { CardContent } from "@/components/ui";
+import { useEffect } from "react";
+import { miniServer } from "@/libs/mini-server";
 
 export function ProjectEditor() {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState("");
+  const [prompt, setPrompt] = useAtom(promptState);
   const {
     project,
-    currentCode,
     isStreamingCode,
+    currentCode,
     setCurrentCode,
     setIsStreamingCode,
   } = useProjectDetail();
 
-  const generateInitialCode = async () => {
+  const createVersion = async (sourceCode: string, prompt: string) => {
+    try {
+      const response = await miniServer.POST(
+        "/api/projects/{project_id}/versions" as any,
+        {
+          params: {
+            path: { project_id: project.id },
+          },
+          body: {
+            prompt,
+            source_code: sourceCode,
+            model: project.model,
+          },
+        } as any,
+      );
+
+      if (response.error) {
+        throw new Error(`Failed to create version: ${response.error}`);
+      }
+      toast.success("Code improved and new version created!");
+    } catch (error) {
+      console.error("Failed to create version:", error);
+      toast.error("Failed to save improved code");
+    }
+  };
+
+  const handleStreamingCodeGeneration = async (isInitial: boolean = false) => {
     if (!project) return;
 
-    setIsGenerating(true);
-    setIsStreamingCode(true);
-    setCurrentCode("");
-    setGeneratedCode("");
+    let userPrompt: string;
+    let apiEndpoint: string;
+    let requestBody: unknown;
+
+    if (isInitial) {
+      // Initial code generation
+      userPrompt = project.originalPrompt || project.name;
+      apiEndpoint = `${CONFIG.API.BASE_URL}/generate`;
+      requestBody = {
+        prompt: `Create a React TypeScript component for: ${userPrompt}`,
+      };
+    } else {
+      // Code modification
+      if (!prompt.trim()) {
+        toast.error("Please enter a modification prompt");
+        return;
+      }
+      if (
+        !project?.versions[project.versions.length - 1]?.sourceCode ||
+        !currentCode
+      ) {
+        toast.error("No existing code to modify");
+        return;
+      }
+
+      userPrompt = prompt.trim();
+      apiEndpoint = `${CONFIG.API.BASE_URL}/generate/modify`;
+      requestBody = {
+        existing_code:
+          project.versions[project.versions.length - 1]?.sourceCode ||
+          currentCode,
+        modification_prompt: userPrompt,
+        model: "claude-3-haiku-20240307",
+      };
+    }
 
     try {
-      // Get the initial prompt from project data
-      const initialPrompt = project.originalPrompt || project.name;
+      setIsStreamingCode(true);
+      setCurrentCode("");
 
-      const response = await fetch(`${CONFIG.API.BASE_URL}/generate`, {
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          prompt: `Create a React TypeScript component for: ${initialPrompt}`,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -63,11 +111,8 @@ export function ProjectEditor() {
         const { done, value } = await reader.read();
 
         if (done) {
-          setIsStreamingCode(false);
-          setGeneratedCode(fullCode);
-
-          // Create the first version with the generated code
-          await createFirstVersion(fullCode, initialPrompt);
+          await createVersion(fullCode, userPrompt);
+          if (!isInitial) setPrompt("");
           return;
         }
 
@@ -83,11 +128,8 @@ export function ProjectEditor() {
             const data = trimmedLine.substring(6);
 
             if (data === "[DONE]") {
-              setIsStreamingCode(false);
-              setGeneratedCode(fullCode);
-
-              // Create the first version with the generated code
-              await createFirstVersion(fullCode, initialPrompt);
+              await createVersion(fullCode, userPrompt);
+              if (!isInitial) setPrompt("");
               return;
             }
 
@@ -106,173 +148,135 @@ export function ProjectEditor() {
           }
         }
 
-        readStream();
+        await readStream();
       };
 
       await readStream();
     } catch (error) {
       console.error("Code generation failed:", error);
       toast.error("Code generation failed. Please try again.");
-      setIsStreamingCode(false);
-      setIsGenerating(false);
-    }
-  };
-
-  const createFirstVersion = async (sourceCode: string, prompt: string) => {
-    try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/projects/${project?.id}/versions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt,
-            source_code: sourceCode,
-            model: "claude-3-haiku-20240307",
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to create version: ${response.status}`);
-      }
-
-      // Refresh the project to show the new version
-      window.location.reload();
-      toast.success("Code generated and first version created!");
-    } catch (error) {
-      console.error("Failed to create first version:", error);
-      toast.error("Failed to save generated code");
     } finally {
-      setIsGenerating(false);
+      setIsStreamingCode(false);
     }
   };
 
-  const handleStreamingUpdate = () => {
-    // This will be handled by the EditorPrompt component directly updating the context
-    // We don't need local state anymore
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleStreamingCodeGeneration(false);
+    }
   };
+
+  const isInitialGeneration = project.currentVersion === 0;
+  useEffect(() => {
+    if (isInitialGeneration) {
+      handleStreamingCodeGeneration(true);
+    }
+  }, [isInitialGeneration]);
 
   if (!project) {
     return (
-      <>
-        <CardHeader>
-          <CardTitle>Project Editor</CardTitle>
-          <CardDescription>Loading project details...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-muted-foreground">
-              <p>Loading project...</p>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter />
-      </>
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-muted-foreground">
+          <p>Loading project...</p>
+        </div>
+      </div>
     );
   }
 
-  // If project has no versions (current_version === 0), show code generation UI
-  if (project.currentVersion === 0) {
-    return (
-      <>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="text-4xl opacity-80">{project.icon}</div>
-            <div>
-              <CardTitle>Generate Initial Code</CardTitle>
-              <CardDescription>
-                {project.name} - {project.description}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-full">
-            <div className="w-full max-w-2xl space-y-6">
-              {!isGenerating && !generatedCode && (
-                <div className="text-center space-y-6">
-                  <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
-                    This project doesn't have any code yet. Click the button
-                    below to generate the initial code using AI.
-                  </p>
-                  <Button
-                    onClick={generateInitialCode}
-                    size="lg"
-                    className="h-12 px-8 gap-2"
-                    disabled={isGenerating}
-                  >
-                    <Zap className="h-5 w-5" />
-                    Generate Initial Code
-                  </Button>
-                </div>
-              )}
+  const headerTitle = isInitialGeneration
+    ? "Generate Initial Code"
+    : "Improve it further";
+  const headerSubtitle = isInitialGeneration
+    ? `${project.name} - ${project.description}`
+    : `(Version ${project.currentVersion})`;
+  const buttonText = isInitialGeneration ? "Generate Initial Code" : "Improve";
+  const placeholderText = isInitialGeneration
+    ? `Generate React TypeScript component for: ${project.originalPrompt || project.name}`
+    : "E.g., Add a new feature for user profiles, Fix the button click...";
 
-              {isStreamingCode && (
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generating code...
-                    </p>
-                    <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                      <div className="h-full bg-primary rounded-full animate-pulse"></div>
-                    </div>
-                  </div>
-
-                  {currentCode && (
-                    <div className="h-80 border border-primary/20 rounded-lg relative overflow-hidden">
-                      <div className="absolute top-2 left-2 z-10 bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
-                        <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                        Generating
-                      </div>
-                      <SyntaxHighlighter
-                        language="tsx"
-                        style={tomorrow}
-                        customStyle={{
-                          margin: 0,
-                          padding: "2rem 0.75rem 0.75rem",
-                          fontSize: "0.75rem",
-                          borderRadius: "0.5rem",
-                          height: "100%",
-                          overflow: "auto",
-                          background: "transparent",
-                        }}
-                        wrapLongLines={true}
-                      >
-                        {currentCode}
-                      </SyntaxHighlighter>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {generatedCode && !isStreamingCode && (
-                <div className="text-center py-4">
-                  <div className="inline-flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
-                    <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    </div>
-                    Code generated successfully! Saving as first version...
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter />
-      </>
-    );
-  }
-
-  // Project has versions - show editing UI
   return (
-    <>
-      <CardContent>
-        <EditorPrompt onStreamingUpdate={handleStreamingUpdate} />
-      </CardContent>
-      <CardFooter />
-    </>
+    <CardContent>
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <span>{headerTitle}</span>
+          <span className="text-sm text-muted-foreground font-normal">
+            {headerSubtitle}
+          </span>
+        </h2>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label
+            htmlFor="modification-prompt"
+            className="block text-sm font-medium text-foreground mb-2"
+          >
+            Describe what you want to change:
+          </label>
+          <Textarea
+            id="modification-prompt"
+            placeholder={placeholderText}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="min-h-[100px] resize-none"
+            disabled={isStreamingCode}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            onClick={() => handleStreamingCodeGeneration(false)}
+            disabled={isStreamingCode || !prompt.trim()}
+            className="space-x-2 w-full"
+            variant="outline"
+          >
+            {isStreamingCode ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                {isStreamingCode ? "Improving..." : "Saving..."}
+              </>
+            ) : (
+              <>
+                <span>🪄 {buttonText} </span>
+                <kbd className="px-2 py-1 text-xs bg-muted rounded whitespace-nowrap">
+                  ⌘ + Enter
+                </kbd>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {project.versions.length > 0 && (
+          <div className="pt-2 border-t border-border">
+            <div className="text-xs text-muted-foreground mb-2">
+              Recent prompts:
+            </div>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {project.versions
+                .slice()
+                .sort((a, b) => b.versionNumber - a.versionNumber)
+                .slice(0, 3)
+                .map((version) => (
+                  <button
+                    key={version.id}
+                    onClick={() => setPrompt(version.prompt)}
+                    className="block w-full text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted p-2 rounded transition-colors"
+                    disabled={isStreamingCode}
+                  >
+                    <span className="font-medium">
+                      v{version.versionNumber}:
+                    </span>{" "}
+                    {version.prompt.length > 80
+                      ? version.prompt.slice(0, 80) + "..."
+                      : version.prompt}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </CardContent>
   );
 }

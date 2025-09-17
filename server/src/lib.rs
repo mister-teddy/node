@@ -1,5 +1,12 @@
+#![recursion_limit = "512"]
+
+use aide::axum::{
+    routing::{delete, get, get_with, post, post_with, put, put_with},
+    ApiRouter, IntoApiResponse,
+};
+use aide::openapi::OpenApi;
 use axum::http::{Method, StatusCode};
-use axum::{response::Redirect, routing::get, Router};
+use axum::{response::Redirect, Extension, Json, Router};
 use reqwest::Client;
 use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
@@ -9,6 +16,7 @@ pub mod config;
 pub mod database;
 pub mod handlers;
 pub mod models;
+pub mod openapi;
 pub mod seed;
 
 #[derive(Clone)]
@@ -23,6 +31,10 @@ pub async fn redirect_to_frontend() -> Result<Redirect, StatusCode> {
     Ok(Redirect::permanent(&frontend_url))
 }
 
+async fn serve_openapi(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
+    Json(api)
+}
+
 pub fn create_router(database: Arc<database::Database>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -35,81 +47,99 @@ pub fn create_router(database: Arc<database::Database>) -> Router {
         ])
         .allow_headers(Any);
 
-    Router::new()
-        .route("/", get(redirect_to_frontend))
-        .route("/generate", axum::routing::post(ai::generate_code_stream))
-        .route(
-            "/generate/modify",
-            axum::routing::post(ai::modify_code_stream),
+    let mut api = openapi::create_openapi_spec();
+
+    let api_router = create_api_router();
+
+    let app = ApiRouter::new()
+        .api_route(
+            "/docs/openapi.json",
+            get_with(serve_openapi, |op| {
+                op.description("Get OpenAPI specification")
+            }),
         )
-        .nest("/api", create_api_router())
+        .nest("/api", api_router.into())
+        .finish_api(&mut api)
+        .layer(Extension(api))
+        .merge(
+            Router::new()
+                .route("/", axum::routing::get(redirect_to_frontend))
+                .route("/generate", axum::routing::post(ai::generate_code_stream))
+                .route(
+                    "/generate/modify",
+                    axum::routing::post(ai::modify_code_stream),
+                ),
+        )
         .layer(cors)
         .with_state(AppState {
             client: Client::new(),
             database,
-        })
+        });
+
+    app
 }
 
-fn create_api_router() -> Router<AppState> {
-    Router::new()
+fn create_api_router() -> ApiRouter<AppState> {
+    ApiRouter::new()
         // AI endpoints
-        .route("/models", get(ai::list_models))
+        .api_route("/models", get(ai::list_models))
         // Database endpoints
-        .route("/db", get(handlers::list_collections))
-        .route(
-            "/db/:collection",
-            axum::routing::post(handlers::create_document),
-        )
-        .route("/db/:collection", get(handlers::list_documents))
-        .route("/db/:collection/:id", get(handlers::get_document))
-        .route(
-            "/db/:collection/:id",
-            axum::routing::put(handlers::update_document),
-        )
-        .route(
-            "/db/:collection/:id",
-            axum::routing::delete(handlers::delete_document),
-        )
-        .route("/db/reset", axum::routing::post(handlers::reset_database))
-        .route("/query", axum::routing::post(handlers::execute_query))
-        .route("/reset", axum::routing::post(handlers::reset_database))
+        .api_route("/db", get(handlers::list_collections))
+        .api_route("/db/:collection", post(handlers::create_document))
+        .api_route("/db/:collection", get(handlers::list_documents))
+        .api_route("/db/:collection/:id", get(handlers::get_document))
+        .api_route("/db/:collection/:id", put(handlers::update_document))
+        .api_route("/db/:collection/:id", delete(handlers::delete_document))
+        .api_route("/db/reset", post(handlers::reset_database))
+        .api_route("/query", post(handlers::execute_query))
+        .api_route("/reset", post(handlers::reset_database))
         // Project endpoints
-        .route("/projects", axum::routing::post(handlers::create_project))
-        .route("/projects", get(handlers::list_projects))
-        .route("/projects/:project_id", get(handlers::get_project))
-        .route(
-            "/projects/:project_id",
-            axum::routing::put(handlers::update_project),
-        )
-        .route(
-            "/projects/:project_id",
-            axum::routing::delete(handlers::delete_project),
-        )
-        .route(
+        .api_route("/projects", post(handlers::create_project))
+        .api_route("/projects", get(handlers::list_projects))
+        .api_route("/projects/:project_id", get(handlers::get_project))
+        .api_route("/projects/:project_id", put(handlers::update_project))
+        .api_route("/projects/:project_id", delete(handlers::delete_project))
+        .api_route(
             "/projects/:project_id/versions",
-            axum::routing::post(handlers::create_version),
+            post(handlers::create_version),
         )
-        .route(
+        .api_route(
             "/projects/:project_id/versions",
             get(handlers::list_versions),
         )
-        .route(
+        .api_route(
             "/projects/:project_id/release",
-            axum::routing::post(handlers::release_version),
+            post(handlers::release_version),
         )
-        .route(
+        .api_route(
             "/projects/:project_id/convert",
-            axum::routing::post(handlers::convert_to_app),
+            post(handlers::convert_to_app),
         )
         // Published projects endpoint
-        .route("/published-projects", get(handlers::list_published_projects))
+        .api_route(
+            "/published-projects",
+            get(handlers::list_published_projects),
+        )
         // Dashboard endpoints
-        .route("/dashboard/layout", get(handlers::get_dashboard_layout))
-        .route("/dashboard/layout", axum::routing::put(handlers::save_dashboard_layout))
+        .api_route("/dashboard/layout", get(handlers::get_dashboard_layout))
+        .api_route("/dashboard/layout", put(handlers::save_dashboard_layout))
         // App endpoints
-        .route("/apps", axum::routing::post(handlers::create_app))
-        .route(
+        .api_route("/apps", get_with(handlers::list_apps, |op| {
+            op.summary("List all apps")
+                .description("Get a paginated list of all applications")
+                .tag("Apps")
+        }))
+        .api_route("/apps", post_with(handlers::create_app, |op| {
+            op.summary("Create new app")
+                .description("Create a new application")
+                .tag("Apps")
+        }))
+        .api_route(
             "/apps/:app_id/source",
-            axum::routing::put(handlers::update_app_source_code),
+            put_with(handlers::update_app_source_code, |op| {
+                op.summary("Update app source code")
+                    .description("Update the source code of an existing application")
+                    .tag("Apps")
+            }),
         )
 }

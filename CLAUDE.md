@@ -18,16 +18,6 @@ P2P App Ecosystem - decentralized web store for creating, distributing, and purc
 **client/:** `pages/` routes, `components/` UI, `libs/` utilities, `state.ts` Jotai
 **server/:** `src/main.rs` entry point, modular handlers (`handlers/database.rs`, `handlers/apps.rs`)
 
-## Development Patterns
-**DB:** Server-side SQLite with RESTful JSON API
-**State:** Jotai async atoms (`projectsAtom`, `projectByIdAtom`)
-**Files:** Always **kebab-case**
-**Data Flow:** Server database → async atoms → React components
-**Compilation:** Verify with `pnpm build` (client) and `cargo check` (server)
-**File Size:** <300 LOC, split by domain when exceeded
-**Routes:** Use `/[models]/[id]` pattern for detail pages
-**Code Duplication:** Consolidate shared components, use relative imports, remove unused files
-
 ## Always prefer Claude Subagents:
 
 Automatically delegate tasks to specialized subagents for optimal efficiency:
@@ -43,24 +33,13 @@ Automatically delegate tasks to specialized subagents for optimal efficiency:
 - Shared documentation updates when interfaces change
 - Always validate full-stack integration after changes
 
-## Guidelines
-**Security:** API keys server-only, proxy all external calls
-**Storage:** Server-side only, use async atoms
-**Code:** Reuse 75%+, use Shadcn UI, expand vs duplicate
-
-## Host APIs
-**Base:** `localhost:10000/api/db` (dev), `node.local:443/api/db` (prod)
-**CRUD:** `GET /api/db` (collections), `POST|GET|PUT|DELETE /api/db/{collection}[/{id}]`
-**Features:** Schema-free JSON, auto-timestamps, UUID IDs
-**JS:** Use `HostAPI.db.{create,get,update,delete,list,collections}()` methods
-
-## Config
-**Server:** Port 10000, requires `ANTHROPIC_API_KEY`, <1GB RAM
-**AI:** Claude 3 Haiku, 4096 tokens, temp 1.0
-
-## Rationale
-**Bitcoin/Lightning:** Only scalable decentralized payments
-**IPv6:** No domain gatekeepers
-**PWA:** Native experience without app store censorship
-**L402:** Native web micropayments
-**Front-loaded:** <1GB devices, browser processing
+## Important Guidelines
+- DB: Server-side SQLite with RESTful JSON API
+- State: Jotai async atoms (`projectsAtom`, `projectByIdAtom`)
+- Files: Always **kebab-case**
+- Data Flow: Server database → async atoms → React components
+- Compilation: Verify with `pnpm build` (client) and `cargo check` (server)
+- File Size: <300 LOC, split by domain when exceeded
+- Routes: Use `/[models]/[id]` pattern for detail pages
+- Code Duplication: Consolidate shared components, use relative imports, remove unused files
+- After edit @server/ code, always re-run pnpm gen:rest in @client/

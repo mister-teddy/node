@@ -1,7 +1,10 @@
 import { atom } from "jotai";
 import { atomWithRefresh } from "jotai/utils";
-import CONFIG from "@/config";
-import type { ServerResponse, ProjectData } from "@/types";
+import { miniServer } from "@/libs/mini-server";
+import type { components } from "@/libs/mini-server.schema";
+import { appsAtom } from "./app-ecosystem";
+
+type App = components["schemas"]["App"];
 
 // Dashboard widget layout interfaces
 export interface DashboardWidget {
@@ -17,61 +20,51 @@ export interface DashboardLayout {
   updatedAt: string;
 }
 
-type DashboardLayoutResponse = ServerResponse<DashboardLayout>;
-
 // Published apps atom - loads published apps from server
-export const availableWidgetsState = atomWithRefresh(async () => {
-  try {
-    const response = await fetch(
-      `${CONFIG.API.BASE_URL}/api/published-projects`,
-    );
-    if (!response.ok) {
-      throw new Error(`Failed to fetch published apps: ${response.status}`);
-    }
-    const result = await response.json();
-    return result.data || [];
-  } catch (error) {
-    console.error("Failed to load published apps from server:", error);
-    return [];
-  }
-});
-
-// Dashboard layout atoms
-export const dashboardLayoutState = atomWithRefresh(
-  async (): Promise<DashboardLayout> => {
-    try {
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/dashboard/layout`,
-      );
-      if (!response.ok) {
-        if (response.status === 404) {
-          // No saved layout, return empty default
-          return { widgets: [], updatedAt: new Date().toISOString() };
-        }
-        throw new Error(`Failed to fetch dashboard layout: ${response.status}`);
-      }
-      const result: DashboardLayoutResponse = await response.json();
-      return (
-        result.data || { widgets: [], updatedAt: new Date().toISOString() }
-      );
-    } catch (error) {
-      console.error("Failed to load dashboard layout:", error);
-      return { widgets: [], updatedAt: new Date().toISOString() };
-    }
+export const availableWidgetsState = atomWithRefresh(
+  async (get): Promise<App[]> => {
+    const apps = await get(appsAtom);
+    return apps.filter((app) => !!app.source_code);
   },
 );
 
-// Dashboard widgets currently on dashboard
-export const dashboardWidgetsAtom = atom<DashboardWidget[]>([]);
+// Dashboard layout atoms
+export const dashboardLayoutState = atomWithRefresh(async () => {
+  try {
+    const response = await miniServer.GET("/api/dashboard/layout");
+    if (!response.data?.data) {
+      throw new Error("No layout data");
+    }
+    return response.data?.data;
+  } catch {
+    return { id: "", widgets: [], updatedAt: new Date().toISOString() };
+  }
+});
+
+// Dashboard widgets currently on dashboard - automatically synced with server layout
+export const dashboardWidgetsAtom = atom(
+  // Getter: load from server layout
+  async (get) => {
+    const layout = await get(dashboardLayoutState);
+    return layout.widgets;
+  },
+  // Setter: allow manual updates and trigger save
+  async (_get, set, widgets: DashboardWidget[]) => {
+    // Save to server and update local state
+    await set(saveDashboardLayoutAtom, widgets);
+  },
+);
 
 // Derive widgets that are available to add (not currently on dashboard)
-export const availableToAddWidgetsAtom = atom(async (get) => {
+export const availableToAddWidgetsAtom = atom(async (get): Promise<App[]> => {
   const availableWidgets = await get(availableWidgetsState);
-  const currentWidgets = get(dashboardWidgetsAtom);
-  const currentWidgetAppIds = new Set(currentWidgets.map((w) => w.id));
+  const currentWidgets = await get(dashboardWidgetsAtom);
+  const currentWidgetAppIds = new Set(
+    currentWidgets.map((w: DashboardWidget) => w.id),
+  );
 
   return availableWidgets.filter(
-    (app: ProjectData) => !currentWidgetAppIds.has(app.id),
+    (app: App) => !currentWidgetAppIds.has(app.id),
   );
 });
 
@@ -85,23 +78,14 @@ export const saveDashboardLayoutAtom = atom(
         updatedAt: new Date().toISOString(),
       };
 
-      const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/dashboard/layout`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(layout),
+      await miniServer.PUT("/api/dashboard/layout", {
+        body: {
+          widgets: layout.widgets,
         },
-      );
+      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to save dashboard layout: ${response.status}`);
-      }
-
-      // Update local state
-      set(dashboardWidgetsAtom, widgets);
+      // Refresh the dashboard layout state from server
+      set(dashboardLayoutState);
 
       return layout;
     } catch (error) {
@@ -112,8 +96,8 @@ export const saveDashboardLayoutAtom = atom(
 );
 
 // Add widget to dashboard
-export const addWidgetAtom = atom(null, async (get, set, app: ProjectData) => {
-  const currentWidgets = get(dashboardWidgetsAtom);
+export const addWidgetAtom = atom(null, async (get, set, app: App) => {
+  const currentWidgets = await get(dashboardWidgetsAtom);
 
   // Find next available position
   const getNextPosition = () => {
@@ -145,18 +129,29 @@ export const addWidgetAtom = atom(null, async (get, set, app: ProjectData) => {
 
   const updatedWidgets = [...currentWidgets, newWidget];
 
-  // Save to server
-  await set(saveDashboardLayoutAtom, updatedWidgets);
+  // Save to server using the widget atom setter
+  await set(dashboardWidgetsAtom, updatedWidgets);
 });
 
 // Remove widget from dashboard
 export const removeWidgetAtom = atom(
   null,
   async (get, set, widgetId: string) => {
-    const currentWidgets = get(dashboardWidgetsAtom);
+    const currentWidgets = await get(dashboardWidgetsAtom);
     const updatedWidgets = currentWidgets.filter((w) => w.id !== widgetId);
 
-    // Save to server
-    await set(saveDashboardLayoutAtom, updatedWidgets);
+    // Save to server using the widget atom setter
+    await set(dashboardWidgetsAtom, updatedWidgets);
   },
 );
+
+// Update dashboard layout from GridStack changes
+export const updateDashboardLayoutAtom = atom(
+  null,
+  async (_get, set, newWidgets: DashboardWidget[]) => {
+    // Save to server using the widget atom setter
+    await set(dashboardWidgetsAtom, newWidgets);
+  },
+);
+
+export const widgetDrawerOpenAtom = atom(false);

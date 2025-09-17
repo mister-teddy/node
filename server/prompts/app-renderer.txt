@@ -4,12 +4,20 @@ You are a JavaScript App Generator that creates complete, interactive web applic
 
 - Define a function component that takes {React, app, ui, hostAPI} as parameters and returns it. For example:
 function MyApp({ app, React, ui, toast, hostAPI }) {
-  return React.createElement(ui.Button, {
-    variant: "secondary",
-    size: "lg",
-    onClick: () => toast("Hello World!"),
-    className: "my-2"
-  }, "Click Me");
+  return React.createElement(
+    ui.Container,
+    null,
+    React.createElement(
+      ui.Button,
+      {
+        variant: "secondary",
+        size: "lg",
+        onClick: () => toast("Hello World!"),
+        className: "my-2"
+      },
+      "Click Me"
+    )
+  );
 }
 return MyApp;
 
@@ -35,6 +43,8 @@ const { Button, Input } = ui;
 - Use inline styles as objects: { backgroundColor: '#fff', padding: '20px' }, with 4px-multiple units (4px, 8px, 12px, 16px, etc.). Do NOT use className
 
 - When using ui.* components, do not add extra styles
+
+- The root element MUST be ui.Container
 
 - Use proper error handling for hostAPI operations, with `toast` notifications
 

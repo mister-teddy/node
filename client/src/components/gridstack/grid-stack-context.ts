@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 export const GridStackContext = createContext<{
   initialOptions: GridStackOptions;
   gridStack: GridStack | null;
+  onLayoutChange?: (nodes: any[]) => void;
   addWidget: (fn: (id: string) => Omit<GridStackWidget, "id">) => void;
   removeWidget: (id: string) => void;
   addSubGrid: (

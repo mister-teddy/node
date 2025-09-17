@@ -1,5 +1,5 @@
 import { type FC } from "react";
-import type { ModelInfo } from "@/libs/models";
+import type { ModelInfo } from "@/types";
 import { StarRating } from "./star-rating";
 import { Badge } from "./ui/badge";
 

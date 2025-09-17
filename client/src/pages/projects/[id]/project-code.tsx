@@ -2,7 +2,10 @@ import { Button } from "@/components/ui";
 import { Copy } from "lucide-react";
 import toast from "react-hot-toast";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import { tomorrow } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import {
+  atomOneLight,
+  atomOneDark,
+} from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { useProjectDetail } from "./project-detail-context";
 
 export default function ProjectCode() {
@@ -30,14 +33,19 @@ export default function ProjectCode() {
         </Button>
       )}
       {isStreamingCode && (
-        <div className="absolute top-3 left-3 z-10 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+        <div className="absolute -top-3 left-3 z-10 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
           <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
           Live update
         </div>
       )}
       <SyntaxHighlighter
-        language="js"
-        style={tomorrow}
+        language="javascript"
+        style={
+          typeof window !== "undefined" &&
+          document.documentElement.classList.contains("dark")
+            ? atomOneDark
+            : atomOneLight
+        }
         customStyle={{
           margin: 0,
           padding: "1rem",

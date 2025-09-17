@@ -1,43 +1,18 @@
 use crate::AppState;
+use crate::models::{DashboardLayoutResponse, DashboardLayoutResponseLinks, SaveDashboardLayoutRequest};
 use axum::{
     extract::State,
     http::StatusCode,
     response::Json,
     Json as JsonBody,
 };
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
-pub struct DashboardWidget {
-    pub id: String,        // app ID
-    pub x: i32,           // grid x position
-    pub y: i32,           // grid y position
-    pub w: i32,           // grid width
-    pub h: i32,           // grid height
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub min_w: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub min_h: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_w: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_h: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub no_resize: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub no_move: Option<bool>,
-}
-
-#[derive(Deserialize)]
-pub struct SaveDashboardLayoutRequest {
-    pub widgets: Vec<DashboardWidget>,
-}
 
 const LAYOUT_ID: &str = "default_layout";
 
 pub async fn get_dashboard_layout(
     State(app_state): State<AppState>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<DashboardLayoutResponse>, StatusCode> {
     // Try to find existing layout document
     let layouts_result = app_state
         .database
@@ -60,32 +35,34 @@ pub async fn get_dashboard_layout(
 
     match layout_doc {
         Some(doc) => {
-            let widgets = doc.data.get("widgets")
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!([]));
-            Ok(Json(serde_json::json!({
-                "data": {
-                    "id": LAYOUT_ID,
-                    "widgets": widgets,
-                    "updated_at": doc.updated_at
+            let response = DashboardLayoutResponse {
+                data: doc.into(),
+                links: DashboardLayoutResponseLinks {
+                    self_link: "/api/dashboard/layout".to_string(),
                 },
-                "links": {
-                    "self": "/api/dashboard/layout"
-                }
-            })))
+            };
+            Ok(Json(response))
         }
         None => {
-            // Return empty layout if none exists
-            Ok(Json(serde_json::json!({
-                "data": {
+            // Create a default empty layout document for conversion
+            let default_doc = crate::models::Document {
+                id: "temp".to_string(),
+                collection: "dashboard_layouts".to_string(),
+                data: serde_json::json!({
                     "id": LAYOUT_ID,
                     "widgets": [],
                     "updated_at": null
+                }),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            };
+            let response = DashboardLayoutResponse {
+                data: default_doc.into(),
+                links: DashboardLayoutResponseLinks {
+                    self_link: "/api/dashboard/layout".to_string(),
                 },
-                "links": {
-                    "self": "/api/dashboard/layout"
-                }
-            })))
+            };
+            Ok(Json(response))
         }
     }
 }
@@ -93,7 +70,7 @@ pub async fn get_dashboard_layout(
 pub async fn save_dashboard_layout(
     State(app_state): State<AppState>,
     JsonBody(req): JsonBody<SaveDashboardLayoutRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<DashboardLayoutResponse>, StatusCode> {
     let now = chrono::Utc::now().to_rfc3339();
 
     // Check if layout already exists
@@ -130,19 +107,13 @@ pub async fn save_dashboard_layout(
                 .await
             {
                 Ok(Some(updated_doc)) => {
-                    let widgets = updated_doc.data.get("widgets")
-                        .cloned()
-                        .unwrap_or_else(|| serde_json::json!([]));
-                    Ok(Json(serde_json::json!({
-                        "data": {
-                            "id": LAYOUT_ID,
-                            "widgets": widgets,
-                            "updated_at": updated_doc.updated_at
+                    let response = DashboardLayoutResponse {
+                        data: updated_doc.into(),
+                        links: DashboardLayoutResponseLinks {
+                            self_link: "/api/dashboard/layout".to_string(),
                         },
-                        "links": {
-                            "self": "/api/dashboard/layout"
-                        }
-                    })))
+                    };
+                    Ok(Json(response))
                 }
                 Ok(None) => Err(StatusCode::NOT_FOUND),
                 Err(e) => {
@@ -159,19 +130,13 @@ pub async fn save_dashboard_layout(
                 .await
             {
                 Ok(created_doc) => {
-                    let widgets = created_doc.data.get("widgets")
-                        .cloned()
-                        .unwrap_or_else(|| serde_json::json!([]));
-                    Ok(Json(serde_json::json!({
-                        "data": {
-                            "id": LAYOUT_ID,
-                            "widgets": widgets,
-                            "updated_at": created_doc.updated_at
+                    let response = DashboardLayoutResponse {
+                        data: created_doc.into(),
+                        links: DashboardLayoutResponseLinks {
+                            self_link: "/api/dashboard/layout".to_string(),
                         },
-                        "links": {
-                            "self": "/api/dashboard/layout"
-                        }
-                    })))
+                    };
+                    Ok(Json(response))
                 }
                 Err(e) => {
                     tracing::error!("Failed to create dashboard layout: {}", e);

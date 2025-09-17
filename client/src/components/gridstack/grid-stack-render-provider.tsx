@@ -24,6 +24,7 @@ export function GridStackRenderProvider({ children }: PropsWithChildren) {
   const {
     _gridStack: { value: gridStack, set: setGridStack },
     initialOptions,
+    onLayoutChange,
   } = useGridStackContext();
 
   const widgetContainersRef = useRef<Map<string, HTMLElement>>(new Map());
@@ -51,17 +52,29 @@ export function GridStackRenderProvider({ children }: PropsWithChildren) {
   const initGrid = useCallback(() => {
     if (containerRef.current) {
       GridStack.renderCB = renderCBFn;
-      return GridStack.init(optionsRef.current, containerRef.current);
-      // ! Change event not firing on nested grids (resize, move...) https://github.com/gridstack/gridstack.js/issues/2671
-      // .on("change", () => {
-      //   console.log("changed");
-      // })
-      // .on("resize", () => {
-      //   console.log("resize");
-      // })
+      const grid = GridStack.init(optionsRef.current, containerRef.current);
+
+      // Add change event handlers for layout persistence
+      if (grid && onLayoutChange) {
+        grid
+          .on("change", (_event, items) => {
+            // Save the layout when items are moved or resized
+            if (items && items.length > 0) {
+              const savedNodes = grid.save(false, false) as any[];
+              onLayoutChange(savedNodes);
+            }
+          })
+          .on("resize", (_event, _element) => {
+            // Save layout after resize is complete
+            const savedNodes = grid.save(false, false) as any[];
+            onLayoutChange(savedNodes);
+          });
+      }
+
+      return grid;
     }
     return null;
-  }, [renderCBFn]);
+  }, [renderCBFn, onLayoutChange]);
 
   useLayoutEffect(() => {
     if (!isEqual(initialOptions, optionsRef.current) && gridStack) {
@@ -109,7 +122,9 @@ export function GridStackRenderProvider({ children }: PropsWithChildren) {
         [gridStack],
       )}
     >
-      <div ref={containerRef}>{gridStack ? children : null}</div>
+      <div ref={containerRef} className="flex-1 overflow-auto">
+        {gridStack ? children : null}
+      </div>
     </GridStackRenderContext.Provider>
   );
 }
